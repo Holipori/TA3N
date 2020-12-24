@@ -25,7 +25,7 @@ else
 fi
 
 #====== select dataset ======#
-path_data_root=/home/mchen2/dataset/ # depend on users
+path_data_root=/home/xinyuehu/dataset/ # depend on users
 path_exp_root=action-experiments/ # depend on users
 
 if [ "$dataset" == "hmdb_ucf" ] || [ "$dataset" == "hmdb_ucf_small" ] ||[ "$dataset" == "ucf_olympic" ]
