@@ -1,5 +1,6 @@
 import argparse
 parser = argparse.ArgumentParser(description="PyTorch implementation of Temporal Segment Networks")
+parser.add_argument('dataset', type=str, default= "hmdb_ucf", choices=["hmdb_ucf", "hmdb_ucf_small", "ucf_olympic"])
 parser.add_argument('class_file', type=str, default="classInd.txt")
 parser.add_argument('modality', type=str, choices=['RGB', 'Flow', 'RGBDiff', 'RGBDiff2', 'RGBDiffplus'])
 parser.add_argument('train_source_list', type=str)
