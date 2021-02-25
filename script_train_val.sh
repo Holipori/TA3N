@@ -1,16 +1,16 @@
 #!/bin/bash
 
 #====== parameters ======#
-dataset=hmdb_ucf # hmdb_ucf | hmdb_ucf_small | ucf_olympic
+dataset=hmdb_ucf_small # hmdb_ucf | hmdb_ucf_small | ucf_olympic
 class_file='data/classInd_'$dataset'.txt'
 training=true # true | false
 testing=false # true | false
 modality=RGB 
 frame_type=feature # frame | feature
-num_segments=5 # sample frame # of each video for training
+num_segments=5 # sample frame # of each video for ttrain_segmentsraining
 test_segments=5
 baseline_type=video
-frame_aggregation=trn-m # method to integrate the frame-level features (avgpool | trn | trn-m | rnn | temconv)
+frame_aggregation=trn-m # method to integrate tframe_aggregationhe frame-level features (avgpool | trn | trn-m | rnn | temconv)
 add_fc=1
 fc_dim=512
 arch=resnet101
@@ -25,7 +25,7 @@ else
 fi
 
 #====== select dataset ======#
-path_data_root=/home/xinyuehu/dataset/ # depend on users
+path_data_root=~/dataset/ # depend on users
 path_exp_root=action-experiments/ # depend on users
 
 if [ "$dataset" == "hmdb_ucf" ] || [ "$dataset" == "hmdb_ucf_small" ] ||[ "$dataset" == "ucf_olympic" ]
@@ -53,7 +53,7 @@ then
 	else
     	dataset_target=$dataset_target'_train'
 	fi
-	
+
 	if [[ "$dataset_val" =~ "val" ]]
 	then
 		dataset_val=$dataset_val
@@ -141,7 +141,7 @@ then
 	gd=20
 	
 	#------ main command ------#
-	python main.py $dataset $class_file $modality $train_source_list $train_target_list $val_list --exp_path $exp_path \
+	python main.py --dataset $dataset --class_file $class_file --modality $modality --train_source_list $train_source_list --train_target_list $train_target_list --val_list $val_list --exp_path $exp_path \
 	--arch $arch --pretrained $pretrained --baseline_type $baseline_type --frame_aggregation $frame_aggregation \
 	--num_segments $num_segments --val_segments $val_segments --add_fc $add_fc --fc_dim $fc_dim --dropout_i 0.5 --dropout_v 0.5 \
 	--use_target $use_target --share_params $share_params \

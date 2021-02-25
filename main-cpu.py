@@ -1,5 +1,4 @@
 # import argparse
-
 import os
 import time
 import shutil
@@ -11,7 +10,6 @@ import torch.optim
 from torch.nn.utils import clip_grad_norm_
 
 from dataset import TSNDataSet
-# from models_backup import VideoModel
 from models import VideoModel
 from loss import *
 from opts import parser
@@ -25,12 +23,13 @@ from tensorboardX import SummaryWriter
 
 np.random.seed(1)
 torch.manual_seed(1)
-torch.cuda.manual_seed_all(1)
+#torch.manual_seed_all(1) #gpu
 
 init(autoreset=True)
 
 best_prec1 = 0
-gpu_count = torch.cuda.device_count()
+gpu_count = 0
+#gpu_count = torch.device_count() #gpu
 
 def main():
 	global args, best_prec1, writer
@@ -76,10 +75,9 @@ def main():
 				use_bn=args.use_bn if args.use_target != 'none' else 'none', ens_DA=args.ens_DA if args.use_target != 'none' else 'none',
 				n_rnn=args.n_rnn, rnn_cell=args.rnn_cell, n_directions=args.n_directions, n_ts=args.n_ts,
 				use_attn=args.use_attn, n_attn=args.n_attn, use_attn_frame=args.use_attn_frame,
-				verbose=args.verbose, share_params=args.share_params, if_trm = args.if_trm, trm_bottleneck=args.trm_bottleneck)
+				verbose=args.verbose, share_params=args.share_params)
 
-	model = torch.nn.DataParallel(model, args.gpus).cuda()
-	# model = model.cuda()
+	model = torch.nn.DataParallel(model, args.gpus)
 
 	if args.optimizer == 'SGD':
 		print(Fore.YELLOW + 'using SGD')
@@ -160,14 +158,14 @@ def main():
 	class_id, class_data_counts = np.unique(np.array(class_id_list), return_counts=True)
 	class_freq = (class_data_counts / class_data_counts.sum()).tolist()
 
-	weight_source_class = torch.ones(num_class).cuda()
-	weight_domain_loss = torch.Tensor([1, 1]).cuda()
+	weight_source_class = torch.ones(num_class)
+	weight_domain_loss = torch.Tensor([1, 1])
 
 	if args.weighted_class_loss == 'Y':
-		weight_source_class = 1 / torch.Tensor(class_freq).cuda()
+		weight_source_class = 1 / torch.Tensor(class_freq)
 
 	if args.weighted_class_loss_DA == 'Y':
-		weight_domain_loss = torch.Tensor([1/num_source_train, 1/num_target_train]).cuda()
+		weight_domain_loss = torch.Tensor([1/num_source_train, 1/num_target_train])
 
 	# data loading (always need to load the testing data)
 	val_segments = args.val_segments if args.val_segments > 0 else args.num_segments
@@ -205,8 +203,8 @@ def main():
 	# --- Optimizer ---#
 	# define loss function (criterion) and optimizer
 	if args.loss_type == 'nll':
-		criterion = torch.nn.CrossEntropyLoss(weight=weight_source_class).cuda()
-		criterion_domain = torch.nn.CrossEntropyLoss(weight=weight_domain_loss).cuda()
+		criterion = torch.nn.CrossEntropyLoss(weight=weight_source_class)
+		criterion_domain = torch.nn.CrossEntropyLoss(weight=weight_domain_loss)
 	else:
 		raise ValueError("Unknown loss type")
 
@@ -367,18 +365,18 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 			target_data = torch.cat((target_data, target_data_dummy))
 
 		# add dummy tensors to make sure batch size can be divided by gpu #
-		if source_data.size(0) % gpu_count != 0:
+		if gpu_count != 0 and source_data.size(0) % gpu_count != 0:
 			source_data_dummy = torch.zeros(gpu_count - source_data.size(0) % gpu_count, source_data.size(1), source_data.size(2))
 			source_data = torch.cat((source_data, source_data_dummy))
-		if target_data.size(0) % gpu_count != 0:
+		if gpu_count != 0 and target_data.size(0) % gpu_count != 0:
 			target_data_dummy = torch.zeros(gpu_count - target_data.size(0) % gpu_count, target_data.size(1), target_data.size(2))
 			target_data = torch.cat((target_data, target_data_dummy))
 
 		# measure data loading time
 		data_time.update(time.time() - end)
 
-		source_label = source_label.cuda(non_blocking=True) # pytorch 0.4.X
-		target_label = target_label.cuda(non_blocking=True) # pytorch 0.4.X
+		source_label = source_label # pytorch 0.4.X
+		target_label = target_label # pytorch 0.4.X
 
 		if args.baseline_type == 'frame':
 			source_label_frame = source_label.unsqueeze(1).repeat(1,args.num_segments).view(-1) # expand the size for all the frames
@@ -525,7 +523,7 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 					target_domain_label = torch.ones(pred_domain_target_single.size(0)).long()
 					domain_label = torch.cat((source_domain_label,target_domain_label),0)
 
-					domain_label = domain_label.cuda(non_blocking=True)
+					domain_label = domain_label
 
 					pred_domain = torch.cat((pred_domain_source_single, pred_domain_target_single),0)
 					pred_domain_all.append(pred_domain)
@@ -566,8 +564,7 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 
 		# measure accuracy and record loss
 		pred = out
-		# print('pred shape:', pred.shape)
-		# print('label shape:', label.shape)
+
 		prec1, prec5 = accuracy(pred.data, label, topk=(1, 5))
 
 		losses.update(loss.item())
@@ -645,21 +642,21 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		writer.add_embedding(feat_all_display, metadata=label_all_domain_display.data, global_step=n_iter_train, tag='train_DA')
 
 		# emphazise some classes (1, 3, 11 here)
-		label_source_1 = 1 * torch.eq(label_source_display, torch.cuda.LongTensor([1]).repeat(label_source_display.size(0))).long().cuda(non_blocking=True)
-		label_source_3 = 2 * torch.eq(label_source_display, torch.cuda.LongTensor([3]).repeat(label_source_display.size(0))).long().cuda(non_blocking=True)
-		label_source_11 = 3 * torch.eq(label_source_display, torch.cuda.LongTensor([11]).repeat(label_source_display.size(0))).long().cuda(non_blocking=True)
+		label_source_1 = 1 * torch.eq(label_source_display, torch.LongTensor([1]).repeat(label_source_display.size(0))).long()
+		label_source_3 = 2 * torch.eq(label_source_display, torch.LongTensor([3]).repeat(label_source_display.size(0))).long()
+		label_source_11 = 3 * torch.eq(label_source_display, torch.LongTensor([11]).repeat(label_source_display.size(0))).long()
 
-		label_target_1 = 4 * torch.eq(label_target_display, torch.cuda.LongTensor([1]).repeat(label_target_display.size(0))).long().cuda(non_blocking=True)
-		label_target_3 = 5 * torch.eq(label_target_display, torch.cuda.LongTensor([3]).repeat(label_target_display.size(0))).long().cuda(non_blocking=True)
-		label_target_11 = 6 * torch.eq(label_target_display, torch.cuda.LongTensor([11]).repeat(label_target_display.size(0))).long().cuda(non_blocking=True)
+		label_target_1 = 4 * torch.eq(label_target_display, torch.LongTensor([1]).repeat(label_target_display.size(0))).long()
+		label_target_3 = 5 * torch.eq(label_target_display, torch.LongTensor([3]).repeat(label_target_display.size(0))).long()
+		label_target_11 = 6 * torch.eq(label_target_display, torch.LongTensor([11]).repeat(label_target_display.size(0))).long()
 
 		label_source_display_new = label_source_1 + label_source_3 + label_source_11
-		id_source_show = ~torch.eq(label_source_display_new, 0).cuda(non_blocking=True)
+		id_source_show = ~torch.eq(label_source_display_new, 0)
 		label_source_display_new = label_source_display_new[id_source_show]
 		feat_source_display_new = feat_source_display[id_source_show]
 
 		label_target_display_new = label_target_1 + label_target_3 + label_target_11
-		id_target_show = ~torch.eq(label_target_display_new, 0).cuda(non_blocking=True)
+		id_target_show = ~torch.eq(label_target_display_new, 0)
 		label_target_display_new = label_target_display_new[id_target_show]
 		feat_target_display_new = feat_target_display[id_target_show]
 
@@ -697,11 +694,11 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 			val_data = torch.cat((val_data, val_data_dummy))
 
 		# add dummy tensors to make sure batch size can be divided by gpu #
-		if val_data.size(0) % gpu_count != 0:
+		if gpu_count != 0 and val_data.size(0) % gpu_count != 0:
 			val_data_dummy = torch.zeros(gpu_count - val_data.size(0) % gpu_count, val_data.size(1), val_data.size(2))
 			val_data = torch.cat((val_data, val_data_dummy))
 
-		val_label = val_label.cuda(non_blocking=True)
+		val_label = val_label
 		with torch.no_grad():
 
 			if args.baseline_type == 'frame':
@@ -821,7 +818,7 @@ def accuracy(output, target, topk=(1,)):
 
 	res = []
 	for k in topk:
-		correct_k = correct[:k].contiguous().view(-1).float().sum(0)
+		correct_k = correct[:k].view(-1).float().sum(0)
 		res.append(correct_k.mul_(100.0 / batch_size))
 	return res
 

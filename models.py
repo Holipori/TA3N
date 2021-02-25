@@ -55,6 +55,18 @@ class TCL(nn.Module):
 
 		return x
 
+
+
+class fc_l(nn.Module):
+    def __init__(self, out, inp=256, methods="weight"):
+        super(fc_l, self).__init__()
+        self.fc = nn.Linear(inp, out)
+        # self.fc.apply(init_weights)
+
+    def forward(self, x):
+        x = self.fc(x)
+        return x
+
 class VideoModel(nn.Module):
 	def __init__(self, num_class, baseline_type, frame_aggregation, modality,
 				train_segments=5, val_segments=25,
@@ -64,7 +76,7 @@ class VideoModel(nn.Module):
 				crop_num=1, partial_bn=True, verbose=True, add_fc=1, fc_dim=1024,
 				n_rnn=1, rnn_cell='LSTM', n_directions=1, n_ts=5,
 				use_attn='TransAttn', n_attn=1, use_attn_frame='none',
-				share_params='Y'):
+				share_params='Y', if_trm = False, trm_bottleneck = 256):
 		super(VideoModel, self).__init__()
 		self.modality = modality
 		self.train_segments = train_segments
@@ -81,6 +93,12 @@ class VideoModel(nn.Module):
 		self.add_fc = add_fc
 		self.fc_dim = fc_dim
 		self.share_params = share_params
+		self.if_trm = if_trm
+		self.trm_bottleneck = trm_bottleneck
+
+		# fc test
+		self.fc_layer = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
+		self.fc_layer2 = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
 
 		# RNN
 		self.n_layers = n_rnn
@@ -134,8 +152,8 @@ class VideoModel(nn.Module):
 		self.dropout_v = nn.Dropout(p=self.dropout_rate_v)
 
 		#------ frame-level layers (shared layers + source layers + domain layers) ------#
-		if self.add_fc < 1:
-			raise ValueError(Back.RED + 'add at least one fc layer')
+		# if self.add_fc < 1:
+		# 	raise ValueError(Back.RED + 'add at least one fc layer')
 
 		# 1. shared feature layers
 		self.fc_feature_shared_source = nn.Linear(self.feature_dim, feat_shared_dim)
@@ -220,7 +238,7 @@ class VideoModel(nn.Module):
 			self.bn_trn_S = nn.BatchNorm1d(self.num_bottleneck)
 			self.bn_trn_T = nn.BatchNorm1d(self.num_bottleneck)
 		elif self.frame_aggregation == 'trn-m':  # 4. TRN (ECCV 2018) ==> fix segment # for both train/val
-			self.num_bottleneck = 256
+			self.num_bottleneck = self.trm_bottleneck ## testing
 			self.TRN = TRNmodule.RelationModuleMultiScale(feat_shared_dim, self.num_bottleneck, self.train_segments)
 			self.bn_trn_S = nn.BatchNorm1d(self.num_bottleneck)
 			self.bn_trn_T = nn.BatchNorm1d(self.num_bottleneck)
@@ -559,48 +577,32 @@ class VideoModel(nn.Module):
 
 		#=== shared layers ===#
 		# need to separate BN for source & target ==> otherwise easy to overfit to source data
-		if self.add_fc < 1:
-			raise ValueError(Back.RED + 'not enough fc layer')
+		if self.add_fc == 1:
+			# raise ValueError(Back.RED + 'not enough fc layer')
 
-		feat_fc_source = self.fc_feature_shared_source(feat_base_source)
-		feat_fc_target = self.fc_feature_shared_target(feat_base_target) if self.share_params == 'N' else self.fc_feature_shared_source(feat_base_target)
+			feat_fc_source = self.fc_feature_shared_source(feat_base_source)
+			feat_fc_target = self.fc_feature_shared_target(feat_base_target) if self.share_params == 'N' else self.fc_feature_shared_source(feat_base_target)
 
-		# adaptive BN
-		if self.use_bn != 'none':
-			feat_fc_source, feat_fc_target = self.domainAlign(feat_fc_source, feat_fc_target, is_train, 'shared', self.alpha.item(), num_segments, 1)
+			# adaptive BN
+			if self.use_bn != 'none':
+				feat_fc_source, feat_fc_target = self.domainAlign(feat_fc_source, feat_fc_target, is_train, 'shared', self.alpha.item(), num_segments, 1)
 
-		feat_fc_source = self.relu(feat_fc_source)
-		feat_fc_target = self.relu(feat_fc_target)
-		feat_fc_source = self.dropout_i(feat_fc_source)
-		feat_fc_target = self.dropout_i(feat_fc_target)
-
+			feat_fc_source = self.relu(feat_fc_source)
+			feat_fc_target = self.relu(feat_fc_target)
+			feat_fc_source = self.dropout_i(feat_fc_source)
+			feat_fc_target = self.dropout_i(feat_fc_target)
+		else:
+			feat_fc_source = feat_base_source
+			feat_fc_target = feat_base_target
 		# feat_fc = self.dropout_i(feat_fc)
 		feat_all_source.append(feat_fc_source.view((batch_source, num_segments) + feat_fc_source.size()[-1:])) # reshape ==> 1st dim is the batch size
 		feat_all_target.append(feat_fc_target.view((batch_target, num_segments) + feat_fc_target.size()[-1:]))
 
-		if self.add_fc > 1: 
-			feat_fc_source = self.fc_feature_shared_2_source(feat_fc_source)
-			feat_fc_target = self.fc_feature_shared_2_target(feat_fc_target) if self.share_params == 'N' else self.fc_feature_shared_2_source(feat_fc_target)
+		# print('shape1:', input_source.shape) # 128 5 2048
+		# print('shape2:', feat_base_source.shape) # 640 2048
+		# print('shape3:', feat_fc_source.shape) # 640 512
+		# print('shape4:', len(feat_all_source), len(feat_all_source[0]),len(feat_all_source[0][0]),len(feat_all_source[0][0][0]))# 1 128 5 512
 
-			feat_fc_source = self.relu(feat_fc_source)
-			feat_fc_target = self.relu(feat_fc_target)
-			feat_fc_source = self.dropout_i(feat_fc_source)
-			feat_fc_target = self.dropout_i(feat_fc_target)
-
-			feat_all_source.append(feat_fc_source.view((batch_source, num_segments) + feat_fc_source.size()[-1:])) # reshape ==> 1st dim is the batch size
-			feat_all_target.append(feat_fc_target.view((batch_target, num_segments) + feat_fc_target.size()[-1:]))
-
-		if self.add_fc > 2: 
-			feat_fc_source = self.fc_feature_shared_3_source(feat_fc_source)
-			feat_fc_target = self.fc_feature_shared_3_target(feat_fc_target) if self.share_params == 'N' else self.fc_feature_shared_3_source(feat_fc_target)
-
-			feat_fc_source = self.relu(feat_fc_source)
-			feat_fc_target = self.relu(feat_fc_target)
-			feat_fc_source = self.dropout_i(feat_fc_source)
-			feat_fc_target = self.dropout_i(feat_fc_target)
-
-			feat_all_source.append(feat_fc_source.view((batch_source, num_segments) + feat_fc_source.size()[-1:])) # reshape ==> 1st dim is the batch size
-			feat_all_target.append(feat_fc_target.view((batch_target, num_segments) + feat_fc_target.size()[-1:]))
 
 		# === adversarial branch (frame-level) ===#
 		pred_fc_domain_frame_source = self.domain_classifier_frame(feat_fc_source, beta)
@@ -609,26 +611,15 @@ class VideoModel(nn.Module):
 		pred_domain_all_source.append(pred_fc_domain_frame_source.view((batch_source, num_segments) + pred_fc_domain_frame_source.size()[-1:]))
 		pred_domain_all_target.append(pred_fc_domain_frame_target.view((batch_target, num_segments) + pred_fc_domain_frame_target.size()[-1:]))
 
-		if self.use_attn_frame != 'none': # attend the frame-level features only
-			feat_fc_source = self.get_attn_feat_frame(feat_fc_source, pred_fc_domain_frame_source)
-			feat_fc_target = self.get_attn_feat_frame(feat_fc_target, pred_fc_domain_frame_target)
 
 		#=== source layers (frame-level) ===#
 		pred_fc_source = self.fc_classifier_source(feat_fc_source)
 		pred_fc_target = self.fc_classifier_target(feat_fc_target) if self.share_params == 'N' else self.fc_classifier_source(feat_fc_target)
-		if self.baseline_type == 'frame':
-			feat_all_source.append(pred_fc_source.view((batch_source, num_segments) + pred_fc_source.size()[-1:])) # reshape ==> 1st dim is the batch size
-			feat_all_target.append(pred_fc_target.view((batch_target, num_segments) + pred_fc_target.size()[-1:]))
+		# print('shape5:', pred_fc_source.shape, 'pred, bu zhi dao shi sha')
 
 		### aggregate the frame-based features to video-based features ###
-		if self.frame_aggregation == 'avgpool' or self.frame_aggregation == 'rnn':
-			feat_fc_video_source = self.aggregate_frames(feat_fc_source, num_segments, pred_fc_domain_frame_source)
-			feat_fc_video_target = self.aggregate_frames(feat_fc_target, num_segments, pred_fc_domain_frame_target)
 
-			attn_relation_source = feat_fc_video_source[:,0] # assign random tensors to attention values to avoid runtime error
-			attn_relation_target = feat_fc_video_target[:,0] # assign random tensors to attention values to avoid runtime error
-
-		elif 'trn' in self.frame_aggregation:
+		if self.if_trm:
 			feat_fc_video_source = feat_fc_source.view((-1, num_segments) + feat_fc_source.size()[-1:])  # reshape based on the segments (e.g. 640x512 --> 128x5x512)
 			feat_fc_video_target = feat_fc_target.view((-1, num_segments) + feat_fc_target.size()[-1:])  # reshape based on the segments (e.g. 640x512 --> 128x5x512)
 
@@ -640,36 +631,33 @@ class VideoModel(nn.Module):
 			pred_fc_domain_video_relation_target = self.domain_classifier_relation(feat_fc_video_relation_target, beta)
 
 			# transferable attention
-			if self.use_attn != 'none': # get the attention weighting
-				feat_fc_video_relation_source, attn_relation_source = self.get_attn_feat_relation(feat_fc_video_relation_source, pred_fc_domain_video_relation_source, num_segments)
-				feat_fc_video_relation_target, attn_relation_target = self.get_attn_feat_relation(feat_fc_video_relation_target, pred_fc_domain_video_relation_target, num_segments)
-			else:
-				attn_relation_source = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
-				attn_relation_target = feat_fc_video_relation_target[:,:,0] # assign random tensors to attention values to avoid runtime error
+
+			attn_relation_source = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
+			attn_relation_target = feat_fc_video_relation_target[:,:,0] # assign random tensors to attention values to avoid runtime error
 
 			# sum up relation features (ignore 1-relation)
 			feat_fc_video_source = torch.sum(feat_fc_video_relation_source, 1)
 			feat_fc_video_target = torch.sum(feat_fc_video_relation_target, 1)
+		else:
+			### testing code here
+			feat_fc_video_source = feat_fc_source.view((-1, num_segments) + feat_fc_source.size()[-1:])  # reshape based on the segments (e.g. 640x512 --> 128x5x512)
+			feat_fc_video_target = feat_fc_target.view((-1, num_segments) + feat_fc_target.size()[-1:])  # reshape based on the segments (e.g. 640x512 --> 128x5x512)
 
-		elif self.frame_aggregation == 'temconv': # DA operation inside temconv
-			feat_fc_video_source = feat_fc_source.view((-1, 1, num_segments) + feat_fc_source.size()[-1:])  # reshape based on the segments
-			feat_fc_video_target = feat_fc_target.view((-1, 1, num_segments) + feat_fc_target.size()[-1:])  # reshape based on the segments
+			feat_fc_video_relation_source = self.TRN(feat_fc_video_source) # 128x5x512 --> 128x5x256 (256-dim. relation feature vectors x 5)
+			feat_fc_video_relation_target = self.TRN(feat_fc_video_target)
+			feat_fc_video_source = feat_fc_video_source.view(feat_fc_video_source.shape[0],-1)  # reshape based on the segments (e.g. 640x512 --> 128x5x512)
+			feat_fc_video_target = feat_fc_video_target.view(feat_fc_video_target.shape[0],-1)  # reshape based on the segments (e.g. 640x512 --> 128x5x512)
 
-			# 1st TCL
-			feat_fc_video_source_3_1 = self.tcl_3_1(feat_fc_video_source)
-			feat_fc_video_target_3_1 = self.tcl_3_1(feat_fc_video_target)
+			feat_fc_video_source = self.fc_layer(feat_fc_video_source)
+			feat_fc_video_target = self.fc_layer(feat_fc_video_target)
+			attn_relation_source = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
+			attn_relation_target = feat_fc_video_relation_target[:,:,0] # assign random tensors to attention values to avoid runtime error
+			pred_fc_domain_video_relation_source = self.domain_classifier_relation(feat_fc_video_relation_source, beta)
+			pred_fc_domain_video_relation_target = self.domain_classifier_relation(feat_fc_video_relation_target, beta)
+			### tesing code finish
 
-			if self.use_bn != 'none':
-				feat_fc_video_source_3_1, feat_fc_video_target_3_1 = self.domainAlign(feat_fc_video_source_3_1, feat_fc_video_target_3_1, is_train, 'temconv_1', self.alpha.item(), num_segments, 1)
 
-			feat_fc_video_source = self.relu(feat_fc_video_source_3_1)  # 16 x 1 x 5 x 512
-			feat_fc_video_target = self.relu(feat_fc_video_target_3_1)  # 16 x 1 x 5 x 512
-
-			feat_fc_video_source = nn.AvgPool2d(kernel_size=(num_segments, 1))(feat_fc_video_source)  # 16 x 4 x 1 x 512
-			feat_fc_video_target = nn.AvgPool2d(kernel_size=(num_segments, 1))(feat_fc_video_target)  # 16 x 4 x 1 x 512
-
-			feat_fc_video_source = feat_fc_video_source.squeeze(1).squeeze(1)  # e.g. 16 x 512
-			feat_fc_video_target = feat_fc_video_target.squeeze(1).squeeze(1)  # e.g. 16 x 512
+		# print('shape6:', feat_fc_video_source.shape) # 128 256
 
 		if self.baseline_type == 'video':
 			feat_all_source.append(feat_fc_video_source.view((batch_source,) + feat_fc_video_source.size()[-1:]))
@@ -685,7 +673,7 @@ class VideoModel(nn.Module):
 
 		pred_fc_video_source = self.fc_classifier_video_source(feat_fc_video_source)
 		pred_fc_video_target = self.fc_classifier_video_target(feat_fc_video_target) if self.share_params == 'N' else self.fc_classifier_video_source(feat_fc_video_target)
-
+		# print('shape7:', pred_fc_video_source.shape, 'zhi kan zhe ge pred')
 		if self.baseline_type == 'video': # only store the prediction from classifier 1 (for now)
 			feat_all_source.append(pred_fc_video_source.view((batch_source,) + pred_fc_video_source.size()[-1:]))
 			feat_all_target.append(pred_fc_video_target.view((batch_target,) + pred_fc_video_target.size()[-1:]))

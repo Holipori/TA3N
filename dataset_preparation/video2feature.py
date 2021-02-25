@@ -17,23 +17,27 @@ import torchvision.transforms as transforms
 from torch.autograd import Variable
 from PIL import Image
 
-imageio.plugins.ffmpeg.download()
+# imageio.plupipgins.ffmpeg.download()
 init(autoreset=True)
 
 ###### Flags ######
 parser = argparse.ArgumentParser(description='Dataset Preparation')
-parser.add_argument('--data_path', type=str, required=False, default='', help='source path')
+parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/hmdb51/', help='source path')
 parser.add_argument('--video_in', type=str, required=False, default='RGB', help='name of input video dataset')
-parser.add_argument('--feature_in', type=str, required=False, default='RGB-feature', help='name of output frame dataset')
-parser.add_argument('--input_type', type=str, default='video', choices=['video', 'frames'], help='input types for videos')
-parser.add_argument('--structure', type=str, default='tsn', choices=['tsn', 'imagenet'], help='data structure of output frames')
-parser.add_argument('--base_model', type=str, required=False, default='resnet101', choices=['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152', 'c3d'])
+parser.add_argument('--feature_in', type=str, required=False, default='RGB-feature-i3d',
+                    help='name of output frame dataset')
+parser.add_argument('--input_type', type=str, default='video', choices=['video', 'frames'],
+                    help='input types for videos')
+parser.add_argument('--structure', type=str, default='tsn', choices=['tsn', 'imagenet'],
+                    help='data structure of output frames')
+parser.add_argument('--base_model', type=str, required=False, default='resnet101',
+                    choices=['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152', 'c3d'])
 parser.add_argument('--pretrain_weight', type=str, required=False, default='', help='model weight file path')
-parser.add_argument('--num_thread', type=int, required=False, default=-1, help='number of threads for multiprocessing')
-parser.add_argument('--batch_size', type=int, required=False, default=1, help='batch size')
+parser.add_argument('--num_thread', type=int, required=False, default=2, help='number of threads for multiprocessing')
+parser.add_argument('--batch_size', type=int, required=False, default=128, help='batch size')
 parser.add_argument('--start_class', type=int, required=False, default=1, help='the starting class id (start from 1)')
 parser.add_argument('--end_class', type=int, required=False, default=-1, help='the end class id')
-parser.add_argument('--class_file', type=str, default='class.txt', help='process the classes only in the class_file')
+parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/hmdb51_splits/class_list_hmdb_ucf_small.txt', help='process the classes only in the class_file')
 
 args = parser.parse_args()
 
