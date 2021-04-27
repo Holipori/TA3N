@@ -84,6 +84,7 @@ class TSNDataSet(data.Dataset):
         :return: list
         """
         #np.random.seed(1)
+
         average_duration = (record.num_frames - self.new_length + 1) // self.num_segments
         if average_duration > 0:
             offsets = np.multiply(list(range(self.num_segments)), average_duration) + randint(average_duration, size=self.num_segments)
@@ -92,6 +93,9 @@ class TSNDataSet(data.Dataset):
         else:
             offsets = np.zeros((self.num_segments,))
         return offsets + 1
+
+        # return list(range(record.num_frames))
+
 
     def _get_val_indices(self, record):
         num_min = self.num_segments + self.new_length - 1
@@ -117,7 +121,22 @@ class TSNDataSet(data.Dataset):
             id_expand = np.ones(self.num_segments-num_select,dtype=int)*id_select[id_select[0]-1]
             offsets = np.append(id_select, id_expand)
 
+
+        # if record.num_frames >= num_min*2:
+        #     offsets = np.array(list(range(0, self.num_segments*2,2)))
+        # else: # the video clip is too short --> duplicate the last frame
+        #     id_select = np.array([x for x in range(0, num_select, 2)])
+        #     # expand to the length of self.num_segments with the last element
+        #     offsets = id_select.copy()
+        #     while 1:
+        #         if len(id_select)+ len(offsets)< num_min:
+        #             offsets = np.append(offsets,id_select)
+        #         else:
+        #             offsets = np.append(offsets, id_select[:self.num_segments - len(offsets)])
+        #             break
+
         return offsets + 1
+
 
     def __getitem__(self, index):
         record = self.video_list[index]

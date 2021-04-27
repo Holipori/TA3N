@@ -1,30 +1,31 @@
 import argparse
+import deepspeed
 parser = argparse.ArgumentParser(description="PyTorch implementation of Temporal Segment Networks")
-parser.add_argument('--dataset', type=str, default= "hmdb_ucf_small", choices=["hmdb_ucf", "hmdb_ucf_small", "ucf_olympic"])
-# parser.add_argument('--dataset', type=str, default= "hmdb_ucf", choices=["hmdb_ucf", "hmdb_ucf_small", "ucf_olympic"])
-parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf_small.txt")
-# parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf.txt")
+# parser.add_argument('--dataset', type=str, default= "hmdb_ucf_small", choices=["hmdb_ucf", "hmdb_ucf_small", "ucf_olympic"])
+parser.add_argument('--dataset', type=str, default= "hmdb_ucf", choices=["hmdb_ucf", "hmdb_ucf_small", "ucf_olympic"])
+# parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf_small.txt")
+parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf.txt")
 parser.add_argument('--modality', type=str, default = 'RGB', choices=['RGB', 'Flow', 'RGBDiff', 'RGBDiff2', 'RGBDiffplus'])
-parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
-parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
-parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
-# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
-# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
-# parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
+# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
+# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
+# parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
+parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
+parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
+parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
 parser.add_argument('--if_trm', default= True, type = bool, help= 'if replace temporal relation module with fc layer')
 parser.add_argument('--trm_bottleneck', default= 256, type = int, help=' original 256')
 # ========================= Model Configs ==========================
-parser.add_argument('--add_fc', default=0, type=int, metavar='M',
-                    help='number of additional fc layers (excluding the last fc layer) (e.g. 0, 1, 2, ...)')
-# parser.add_argument('--add_fc', default=1, type=int, metavar='M',
+# parser.add_argument('--add_fc', default=0, type=int, metavar='M',
 #                     help='number of additional fc layers (excluding the last fc layer) (e.g. 0, 1, 2, ...)')
+parser.add_argument('--add_fc', default=1, type=int, metavar='M',
+                    help='number of additional fc layers (excluding the last fc layer) (e.g. 0, 1, 2, ...)')
 
 parser.add_argument('--arch', type=str, default="resnet101")
 parser.add_argument('--pretrained', type=str, default="none")
-parser.add_argument('--num_segments', type=int, default=5)
-parser.add_argument('--val_segments', type=int, default=5)
+parser.add_argument('--num_segments', type=int, default=40)
+parser.add_argument('--val_segments', type=int, default=40)
 parser.add_argument('--fc_dim', type=int, default=512, help='dimension of added fc')
-parser.add_argument('--baseline_type', type=str, default='video',
+parser.add_argument('--baseline_type', type=str, default='frame',
                     choices=['frame', 'video', 'tsn'])
 parser.add_argument('--frame_aggregation', type=str, default='trn-m',
                     choices=['avgpool', 'rnn', 'temconv', 'trn', 'trn-m', 'none'], help='aggregation of frame features (none if baseline_type is not video)')
@@ -65,7 +66,7 @@ parser.add_argument('--add_loss_DA', type=str, default='none', choices=['none', 
 parser.add_argument('--pred_normalize', type=str, default='N', choices=['Y', 'N'])
 parser.add_argument('--alpha', default=0, type=float, metavar='M',
                     help='weighting for the discrepancy loss (use scheduler if < 0)')
-parser.add_argument('--beta', default=[0.75, 0.75, 0.5], type=float, nargs="+", metavar='M',
+parser.add_argument('--beta', default=[0.75, 0.75, 1], type=float, nargs="+", metavar='M',
                     help='weighting for the adversarial loss (use scheduler if < 0; [relation-beta, video-beta, frame-beta])')
 parser.add_argument('--gamma', default=0, type=float, metavar='M',
                     help='weighting for the entropy loss')
@@ -74,17 +75,17 @@ parser.add_argument('--mu', default=0, type=float, metavar='M',
 parser.add_argument('--weighted_class_loss_DA', type=str, default='N', choices=['Y', 'N'])
 parser.add_argument('--place_dis', default=['N', 'Y', 'N'], type=str, nargs="+",
                     metavar='N', help='where to place the discrepancy loss (length = add_fc + 2)')
-parser.add_argument('--place_adv', default=['Y', 'Y', 'Y'], type=str, nargs="+",
+parser.add_argument('--place_adv', default=['N', 'Y', 'Y'], type=str, nargs="+",
                     metavar='N', help='[video relation-based adv, video-based adv, frame-based adv]')
 
 
 # ========================= Learning Configs ==========================
 parser.add_argument('--pretrain_source', default=False, action="store_true", help='perform source-only training before DA')
-parser.add_argument('--epochs', default=50, type=int, metavar='N',
+parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
-parser.add_argument('-b', '--batch_size', default=[128, 74, 128], type=int, nargs="+",
+parser.add_argument('-b', '--batch_size', default=[32,32,32], type=int, nargs="+", # 128 74 128 #64,74,128
                     metavar='N', help='mini-batch size ([source, target, testing])')
-parser.add_argument('--lr', '--learning_rate', default=3e-2, type=float,
+parser.add_argument('--lr', '--learning_rate', default=0.01, type=float, # 3e-2
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--lr_decay', default=10, type=float, metavar='LRDecay', help='decay factor for learning rate')
 parser.add_argument('--lr_adaptive', type=str, default='dann', choices=['none', 'loss', 'dann'])
@@ -122,7 +123,7 @@ parser.add_argument('--exp_path', type=str, default="exp-temp",
                     help='full path of the experiment folder')
 parser.add_argument('--gpus', nargs='+', type=int, default=None)
 parser.add_argument('--flow_prefix', default="", type=str)
-parser.add_argument('--save_model', default=False, action="store_true")
+parser.add_argument('--save_model', default=True, action="store_true")
 parser.add_argument('--save_best_log', default="best.log", type=str)
 parser.add_argument('--save_attention', type=int, default=-1)
 parser.add_argument('--tensorboard', dest='tensorboard', action='store_true')

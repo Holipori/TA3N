@@ -22,6 +22,11 @@ from colorama import init
 from colorama import Fore, Back, Style
 import numpy as np
 from tensorboardX import SummaryWriter
+import matplotlib
+import matplotlib.pyplot as plt
+import argparse
+import deepspeed
+matplotlib.use('Agg')
 
 np.random.seed(1)
 torch.manual_seed(1)
@@ -31,6 +36,40 @@ init(autoreset=True)
 
 best_prec1 = 0
 gpu_count = torch.cuda.device_count()
+
+def add_argument(args, num_class):
+	parser = argparse.ArgumentParser(description='deepspeed')
+	# parser.add_argument('--numb_class', default= num_class, type = int)
+	# parser.add_argument('--baseline_type', default= args.baseline_type, type = str)
+	# parser.add_argument('--frame_aggregation', default= args.frame_aggregation, type = str)
+	# parser.add_argument('--modality', default= args.modality, type = str)
+	# parser.add_argument('--num_segments', default= args.num_segments, type = int)
+	# parser.add_argument('--val_segments', default= args.val_segments, type = int)
+	# parser.add_argument('--base_model', default= args.arch, type = str)
+	# parser.add_argument('--path_pretrained', default= args.pretrained, type = str)
+	# parser.add_argument('--add_fc', default= args.add_fc, type = int)
+	# parser.add_argument('--fc_dim', default= args.fc_dim, type = int)
+	# parser.add_argument('--dropout_i', default= args.dropout_i, type = float)
+	# parser.add_argument('--dropout_v', default= args.dropout_v, type = float)
+	# p = not args.no_partialbn
+	# parser.add_argument('--partial_bn', default= p, action= 'store_true')
+	# parser.add_argument('--use_bn', default= 'none', type = str)
+	# parser.add_argument('--ens_DA', default= 'none', type = str)
+	# parser.add_argument('--n_rnn', default= args.n_rnn, type = int)
+	# parser.add_argument('--rnn_cell', default= args.rnn_cell, type = str)
+	# parser.add_argument('--n_directions', default= args.n_directions, type = int)
+	# parser.add_argument('--n_ts', default= args.n_ts, type = int)
+	# parser.add_argument('--use_attn', default= args.use_attn, type = str)
+	# parser.add_argument('--n_attn', default= args.n_attn, type = int)
+	# parser.add_argument('--use_attn_frame', default= args.use_attn_frame, type = str)
+	# parser.add_argument('--verbose', default= args.verbose, action= "store_true")
+	# parser.add_argument('--share_params', default= args.share_params, type = str)
+	# parser.add_argument('--if_trm', default= args.if_trm, type = bool)
+	# parser.add_argument('--trm_bottleneck', default= args.trm_bottleneck, type = int)
+	parser = deepspeed.add_config_arguments(parser)
+
+	args2 = parser.parse_args()
+	return args2
 
 def main():
 	global args, best_prec1, writer
@@ -69,7 +108,7 @@ def main():
 	#=== initialize the model ===#
 	print(Fore.CYAN + 'preparing the model......')
 	model = VideoModel(num_class, args.baseline_type, args.frame_aggregation, args.modality,
-				train_segments=args.num_segments, val_segments=args.val_segments, 
+				train_segments=args.num_segments, val_segments=args.val_segments,
 				base_model=args.arch, path_pretrained=args.pretrained,
 				add_fc=args.add_fc, fc_dim = args.fc_dim,
 				dropout_i=args.dropout_i, dropout_v=args.dropout_v, partial_bn=not args.no_partialbn,
@@ -79,6 +118,8 @@ def main():
 				verbose=args.verbose, share_params=args.share_params, if_trm = args.if_trm, trm_bottleneck=args.trm_bottleneck)
 
 	model = torch.nn.DataParallel(model, args.gpus).cuda()
+	# model = model.cuda()
+
 	# model = model.cuda()
 
 	if args.optimizer == 'SGD':
@@ -98,6 +139,7 @@ def main():
 		if os.path.isfile(args.resume):
 			checkpoint = torch.load(args.resume)
 			start_epoch = checkpoint['epoch'] + 1
+			start_epoch = 50
 			best_prec1 = checkpoint['best_prec1']
 			model.load_state_dict(checkpoint['state_dict'])
 			print(("=> loaded checkpoint '{}' (epoch {})"
@@ -181,6 +223,7 @@ def main():
 	val_loader = torch.utils.data.DataLoader(val_set, batch_size=args.batch_size[2], shuffle=False,
 											 num_workers=args.workers, pin_memory=True)
 
+
 	if not args.evaluate:
 		source_set = TSNDataSet("", args.train_source_list, num_dataload=num_source_train, num_segments=args.num_segments,
 								new_length=data_length, modality=args.modality,
@@ -240,8 +283,10 @@ def main():
 			adjust_learning_rate(optimizer, args.lr_decay)
 
 		# train for one epoch
+		# args.pretrain_source = True if epoch == 1 else False
+		print(args.pretrain_source)
 		loss_c, attn_epoch_source, attn_epoch_target = train(num_class, source_loader, target_loader, model, criterion, criterion_domain, optimizer, epoch, train_file, train_short_file, alpha, beta, gamma, mu)
-		
+
 		if args.save_attention >= 0:
 			attn_source_all = torch.cat((attn_source_all, attn_epoch_source.unsqueeze(0)))  # save the attention values
 			attn_target_all = torch.cat((attn_target_all, attn_epoch_target.unsqueeze(0)))  # save the attention values
@@ -275,7 +320,7 @@ def main():
 					'best_prec1': best_prec1,
 					'prec1': prec1,
 				}, is_best, path_exp)
-	
+
 	end_train = time.time()
 	print(Fore.CYAN + 'total training time:', end_train - start_train)
 	val_best_file.write('%.3f\n' % best_prec1)
@@ -350,6 +395,8 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 	attn_epoch_target = torch.Tensor()
 	for i, ((source_data, source_label),(target_data, target_label)) in data_loader:
 		# setup hyperparameters
+		dummy = False
+		ta3n = False
 		p = float(i + start_steps) / total_steps
 		beta_dann = 2. / (1. + np.exp(-10 * p)) - 1
 		beta = [beta_dann if beta[i] < 0 else beta[i] for i in range(len(beta))] # replace the default beta if value < 0
@@ -360,11 +407,15 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		batch_target_ori = target_size_ori[0]
 		# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
 		if batch_source_ori < args.batch_size[0]:
+			dummy = True
 			source_data_dummy = torch.zeros(args.batch_size[0] - batch_source_ori, source_size_ori[1], source_size_ori[2])
 			source_data = torch.cat((source_data, source_data_dummy))
 		if batch_target_ori < args.batch_size[1]:
 			target_data_dummy = torch.zeros(args.batch_size[1] - batch_target_ori, target_size_ori[1], target_size_ori[2])
 			target_data = torch.cat((target_data, target_data_dummy))
+		if source_label.size()[0] < args.batch_size[0]:
+			source_label_dummy = torch.ones(args.batch_size[0] - source_label.size()[0], source_size_ori[1], source_size_ori[2])*13 # total class number + 1
+			source_label = torch.cat((source_label, source_label_dummy))
 
 		# add dummy tensors to make sure batch size can be divided by gpu #
 		if source_data.size(0) % gpu_count != 0:
@@ -380,17 +431,22 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		source_label = source_label.cuda(non_blocking=True) # pytorch 0.4.X
 		target_label = target_label.cuda(non_blocking=True) # pytorch 0.4.X
 
-		if args.baseline_type == 'frame':
-			source_label_frame = source_label.unsqueeze(1).repeat(1,args.num_segments).view(-1) # expand the size for all the frames
-			target_label_frame = target_label.unsqueeze(1).repeat(1, args.num_segments).view(-1)
+		# if args.baseline_type == 'frame':
+		# 	source_label_frame = source_label.unsqueeze(1).repeat(1,args.num_segments).view(-1) # expand the size for all the frames
+		# 	target_label_frame = target_label.unsqueeze(1).repeat(1, args.num_segments).view(-1)
 
-		label_source = source_label_frame if args.baseline_type == 'frame' else source_label  # determine the label for calculating the loss function
-		label_target = target_label_frame if args.baseline_type == 'frame' else target_label
+		# label_source = source_label_frame if args.baseline_type == 'frame' else source_label  # determine the label for calculating the loss function
+		# label_target = target_label_frame if args.baseline_type == 'frame' else target_label
+		label_source = source_label
+		label_target = target_label
+
 
 		#====== pre-train source data ======#
 		if args.pretrain_source:
+			print('pretraining')
+			optimizer = torch.optim.Adam(model.parameters(), 0.1, weight_decay=args.weight_decay)
 			#------ forward pass data again ------#
-			_, out_source, out_source_2, _, _, _, _, _, _, _ = model(source_data, target_data, beta, mu, is_train=True, reverse=False)
+			_, out_source, out_source_2, _, _, _, _, _, _, _, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_,avg_loss, loss_feature, loss_sdtw = model(source_data, source_label, target_data, beta, mu, is_train=True, reverse=False, batchsize = int(batch_source_ori/gpu_count), dummy = dummy)
 
 			# ignore dummy tensors
 			out_source = out_source[:batch_source_ori]
@@ -402,8 +458,17 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 			label = label_source
 
 			loss = criterion(out, label)
-			if args.ens_DA == 'MCD' and args.use_target != 'none':
+			# loss = criterion(source_sdtw_out, label)
+			loss += sum(loss_sdtw)
+			print(loss)
+			# loss += sum(loss_feature)
+			if args.ens_DA == 'MCD' and args.use_target != 'none': # NO
 				loss += criterion(out_source_2, label)
+			### mycode mei yon
+
+			# my_loss = torch.sum(torch.square(feat_base_source - feat_base_source0)) / (2048 * 150)
+			# loss += my_loss
+			# print('myloss:', my_loss)
 
 			# compute gradient and do SGD step
 			optimizer.zero_grad()
@@ -416,53 +481,63 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 
 			optimizer.step()
 
-
+		optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
+									nesterov=True)
 		#====== forward pass data ======#
-		attn_source, out_source, out_source_2, pred_domain_source, feat_source, attn_target, out_target, out_target_2, pred_domain_target, feat_target = model(source_data, target_data, beta, mu, is_train=True, reverse=False)
+		attn_source, out_source, out_source_2, pred_domain_source, feat_source, attn_target, out_target, out_target_2, pred_domain_target, feat_target, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, loss_feature, loss_sdtw = model(source_data, source_label, target_data, beta, mu, is_train=True, reverse=False , batchsize = int(batch_source_ori/gpu_count), dummy = dummy)
 
 		# ignore dummy tensors
 		attn_source, out_source, out_source_2, pred_domain_source, feat_source = removeDummy(attn_source, out_source, out_source_2, pred_domain_source, feat_source, batch_source_ori)
 		attn_target, out_target, out_target_2, pred_domain_target, feat_target = removeDummy(attn_target, out_target, out_target_2, pred_domain_target, feat_target, batch_target_ori)
 
-		if args.pred_normalize == 'Y': # use the uncertainly method (in contruction...)
-			out_source = out_source / out_source.var().log()
-			out_target = out_target / out_target.var().log()
+		# if args.pred_normalize == 'Y': # use the uncertainly method (in contruction...)
+		# 	out_source = out_source / out_source.var().log()
+		# 	out_target = out_target / out_target.var().log()
 
 		# store the embedding
-		if args.tensorboard:
-			feat_source_display = feat_source[1] if i==0 else torch.cat((feat_source_display, feat_source[1]), 0)
-			label_source_display = label_source if i==0 else torch.cat((label_source_display, label_source), 0)
-			label_source_domain_display = torch.zeros(label_source.size(0)) if i==0 else torch.cat((label_source_domain_display, torch.zeros(label_source.size(0))), 0)
-			feat_target_display = feat_target[1] if i==0 else torch.cat((feat_target_display, feat_target[1]), 0)
-			label_target_display = label_target if i==0 else torch.cat((label_target_display, label_target), 0)
-			label_target_domain_display = torch.ones(label_target.size(0)) if i==0 else torch.cat((label_target_domain_display, torch.ones(label_target.size(0))), 0)
+		# if args.tensorboard:
+		# 	feat_source_display = feat_source[1] if i==0 else torch.cat((feat_source_display, feat_source[1]), 0)
+		# 	label_source_display = label_source if i==0 else torch.cat((label_source_display, label_source), 0)
+		# 	label_source_domain_display = torch.zeros(label_source.size(0)) if i==0 else torch.cat((label_source_domain_display, torch.zeros(label_source.size(0))), 0)
+		# 	feat_target_display = feat_target[1] if i==0 else torch.cat((feat_target_display, feat_target[1]), 0)
+		# 	label_target_display = label_target if i==0 else torch.cat((label_target_display, label_target), 0)
+		# 	label_target_domain_display = torch.ones(label_target.size(0)) if i==0 else torch.cat((label_target_domain_display, torch.ones(label_target.size(0))), 0)
 
 		#====== calculate the loss function ======#
 		# 1. calculate the classification loss
 		out = out_source
 		label = label_source
 
-		if args.use_target == 'Sv':
-			out = torch.cat((out, out_target))
-			label = torch.cat((label, label_target))
+
+		# if args.use_target == 'Sv':
+		# 	out = torch.cat((out, out_target))
+		# 	label = torch.cat((label, label_target))
 
 		loss_classification = criterion(out, label)
+
+		prec1,prec5 = accuracy(out.data, label, topk=(1,5))
+		print('acc:',prec1)
 		if args.ens_DA == 'MCD' and args.use_target != 'none':
 			loss_classification += criterion(out_source_2, label)
 
+		## loss part
 		losses_c.update(loss_classification.item(), out_source.size(0)) # pytorch 0.4.X
 		loss = loss_classification
+		# loss = criterion(source_sdtw_out, label)
+		loss += sum(loss_sdtw)
+		print(loss)
+		# loss += sum(loss_feature)
 
 		# 2. calculate the loss for DA
 		# (I) discrepancy-based approach: discrepancy loss
-		if args.dis_DA != 'none' and args.use_target != 'none':
+		if args.dis_DA != 'none' and args.use_target != 'none': # skipped
 			loss_discrepancy = 0
 
 			kernel_muls = [2.0]*2
 			kernel_nums = [2, 5]
 			fix_sigma_list = [None]*2
 
-			if args.dis_DA == 'JAN':
+			if args.dis_DA == 'JAN': #no
 				# ignore the features from shared layers
 				feat_source_sel = feat_source[:-args.add_fc]
 				feat_target_sel = feat_target[:-args.add_fc]
@@ -505,17 +580,17 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 							raise NameError('not in dis_DA!!!')
 
 			losses_d.update(loss_discrepancy.item(), feat_source[0].size(0))
-			loss += alpha * loss_discrepancy
+			loss += alpha * loss_discrepancy # skipped
 
 		# (II) adversarial discriminative model: adversarial loss
 		if args.adv_DA != 'none' and args.use_target != 'none':
+		# if 0:
 			loss_adversarial = 0
 			pred_domain_all = []
 			pred_domain_target_all = []
 
 			for l in range(len(args.place_adv)):
 				if args.place_adv[l] == 'Y':
-
 					# reshape the features (e.g. 128x5x2 --> 640x2)
 					pred_domain_source_single = pred_domain_source[l].view(-1, pred_domain_source[l].size()[-1])
 					pred_domain_target_single = pred_domain_target[l].view(-1, pred_domain_target[l].size()[-1])
@@ -531,38 +606,65 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 					pred_domain_all.append(pred_domain)
 					pred_domain_target_all.append(pred_domain_target_single)
 
-					if args.pred_normalize == 'Y':  # use the uncertainly method (in construction......)
+					if args.pred_normalize == 'Y':  # NO # use the uncertainly method (in construction......)
 						pred_domain = pred_domain / pred_domain.var().log()
-					loss_adversarial_single = criterion_domain(pred_domain, domain_label)
 
+					print('label:', l, pred_domain.shape, domain_label.shape)
+					loss_adversarial_single = criterion_domain(pred_domain, domain_label)
+					# loss_adversarial_single = F.binary_cross_entropy(pred_domain.squeeze(), domain_label.float())
 					loss_adversarial += loss_adversarial_single
 
 			losses_a.update(loss_adversarial.item(), pred_domain.size(0))
+			print('qian:',loss)
 			loss += loss_adversarial
+			print('hou:', loss)
 
 		# (III) other loss
 		# 1. entropy loss for target data
-		if args.add_loss_DA == 'target_entropy' and args.use_target != 'none':
+		if args.add_loss_DA == 'target_entropy' and args.use_target != 'none': # NO
 			loss_entropy = cross_entropy_soft(out_target)
 			losses_e.update(loss_entropy.item(), out_target.size(0))
-			loss += gamma * loss_entropy
+			loss += gamma * loss_entropy # skipped
 
 		# 2. discrepancy loss for MCD (CVPR 18)
-		if args.ens_DA == 'MCD' and args.use_target != 'none':
-			_, _, _, _, _, attn_target, out_target, out_target_2, pred_domain_target, feat_target = model(source_data, target_data, beta, mu, is_train=True, reverse=True)
-
-			# ignore dummy tensors
-			_, out_target, out_target_2, _, _ = removeDummy(attn_target, out_target, out_target_2, pred_domain_target, feat_target, batch_target_ori)
-
-			loss_dis = -dis_MCD(out_target, out_target_2)
-			losses_s.update(loss_dis.item(), out_target.size(0))
-			loss += loss_dis
+		# if args.ens_DA == 'MCD' and args.use_target != 'none':
+		# 	_, _, _, _, _, attn_target, out_target, out_target_2, pred_domain_target, feat_target, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target = model(source_data, target_data, beta, mu, is_train=True, reverse=True)
+		#
+		# 	# ignore dummy tensors
+		# 	_, out_target, out_target_2, _, _ = removeDummy(attn_target, out_target, out_target_2, pred_domain_target, feat_target, batch_target_ori)
+		#
+		# 	loss_dis = -dis_MCD(out_target, out_target_2)
+		# 	losses_s.update(loss_dis.item(), out_target.size(0))
+		# 	loss += loss_dis
 
 		# 3. attentive entropy loss
-		if args.add_loss_DA == 'attentive_entropy' and args.use_attn != 'none' and args.use_target != 'none':
+		if args.add_loss_DA == 'attentive_entropy' and args.use_attn != 'none' and args.use_target != 'none': # NO
 			loss_entropy = attentive_entropy(torch.cat((out_source, out_target),0), pred_domain_all[1])
 			losses_e.update(loss_entropy.item(), out_target.size(0))
 			loss += gamma * loss_entropy
+
+		##### my code
+		# print('tupian')
+		feat1 = feat_base_source0.detach().cpu().numpy()
+		feat2 = feat_base_source.detach().cpu().numpy()
+		# feat3 = source_means.detach().cpu().numpy()
+		# print(feat_base_source.size())
+		np.save('feat1.npy',feat1)
+		np.save('feat2.npy',feat2)
+		# np.save('feat3.npy',feat3)
+
+		plt.imshow(feat1)
+		a = torch.randn(3,4).numpy()
+		plt.imshow(a)
+		plt.show()
+
+		# print(model.module.fc_classifier_domain.weight)
+		# print(model.module.fc_classifier_domain.weight.grad)
+		# my_loss = torch.sum(torch.square(feat_base_source - feat_base_source0))/(2048*150)
+		# loss+= my_loss
+		# loss += torch.sum(torch.square(feat_base_target - feat_base_target0))/(2048*150)
+		#
+		# print('myloss:', my_loss)
 
 		# measure accuracy and record loss
 		pred = out
@@ -687,14 +789,18 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 		label_val_display = None
 
 	for i, (val_data, val_label) in enumerate(val_loader):
-
+		dummy = False
 		val_size_ori = val_data.size()  # original shape
 		batch_val_ori = val_size_ori[0]
 
 		# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
 		if batch_val_ori < args.batch_size[2]:
+			dummy = True
 			val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
 			val_data = torch.cat((val_data, val_data_dummy))
+		if val_label.size()[0] < args.batch_size[2]:
+			val_label_dummy = torch.ones(args.batch_size[2] - batch_val_ori).long()*12 # total class number
+			val_label = torch.cat((val_label, val_label_dummy))
 
 		# add dummy tensors to make sure batch size can be divided by gpu #
 		if val_data.size(0) % gpu_count != 0:
@@ -708,13 +814,14 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 				val_label_frame = val_label.unsqueeze(1).repeat(1,args.num_segments).view(-1) # expand the size for all the frames
 
 			# compute output
-			_, _, _, _, _, attn_val, out_val, out_val_2, pred_domain_val, feat_val = model(val_data, val_data, [0]*len(args.beta), 0, is_train=False, reverse=False)
+			_, _, _, _, _, attn_val, out_val, out_val_2, pred_domain_val, feat_val, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_, avg_loss, loss_feature,loss_sdtw = model(val_data, val_label, val_data, [0]*len(args.beta), 0, is_train=False, reverse=False, batchsize = int(batch_val_ori/gpu_count), dummy = dummy)
 
 			# ignore dummy tensors
 			attn_val, out_val, out_val_2, pred_domain_val, feat_val = removeDummy(attn_val, out_val, out_val_2, pred_domain_val, feat_val, batch_val_ori)
 
 			# measure accuracy and record loss
-			label = val_label_frame if args.baseline_type == 'frame' else val_label
+			# label = val_label_frame if args.baseline_type == 'frame' else val_label[:batch_val_ori]
+			label = val_label[:batch_val_ori]
 
 			# store the embedding
 			if args.tensorboard:
@@ -725,9 +832,11 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 
 			if args.baseline_type == 'tsn':
 				pred = pred.view(val_label.size(0), -1, num_class).mean(dim=1) # average all the segments (needed when num_segments != val_segments)
-
+			print(pred.size())
 			loss = criterion(pred, label)
+			# loss = criterion(val_sdtw_out, label)
 			prec1, prec5 = accuracy(pred.data, label, topk=(1, 5))
+			# prec1, prec5 = accuracy(val_sdtw_out.data, label, topk=(1, 5))
 
 			losses.update(loss.item(), out_val.size(0))
 			top1.update(prec1.item(), out_val.size(0))
