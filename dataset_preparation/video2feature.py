@@ -22,9 +22,10 @@ init(autoreset=True)
 
 ###### Flags ######
 parser = argparse.ArgumentParser(description='Dataset Preparation')
-parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/hmdb51/', help='source path')
+# parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/hmdb51/', help='source path')
+parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/ucf101/', help='source path')
 parser.add_argument('--video_in', type=str, required=False, default='RGB', help='name of input video dataset')
-parser.add_argument('--feature_in', type=str, required=False, default='RGB-feature-i3d',
+parser.add_argument('--feature_in', type=str, required=False, default='RGB-feature',
                     help='name of output frame dataset')
 parser.add_argument('--input_type', type=str, default='video', choices=['video', 'frames'],
                     help='input types for videos')
@@ -37,7 +38,8 @@ parser.add_argument('--num_thread', type=int, required=False, default=2, help='n
 parser.add_argument('--batch_size', type=int, required=False, default=128, help='batch size')
 parser.add_argument('--start_class', type=int, required=False, default=1, help='the starting class id (start from 1)')
 parser.add_argument('--end_class', type=int, required=False, default=-1, help='the end class id')
-parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/hmdb51_splits/class_list_hmdb_ucf_small.txt', help='process the classes only in the class_file')
+# parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/hmdb51_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
+parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/ucf101_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
 
 args = parser.parse_args()
 
@@ -86,10 +88,12 @@ else:
 	# remove the last layer
 	feature_map = list(model.children())
 	feature_map.pop()
+	feature_map.pop()
 	extractor = nn.Sequential(*feature_map)
 	# multi-gpu
 	extractor = torch.nn.DataParallel(extractor.cuda())
 	extractor.eval()
+	print(extractor)
 
 cudnn.benchmark = True
 
@@ -205,7 +209,11 @@ def extract_features(video_file):
 		features = torch.cat((features,features_batch))
 
 	features = features[:num_frames] # remove the dummy part
-
+	print(features.shape)
+	# if features.shape[-1] == 100352:
+	# 	return
+	# else:
+	# 	pass
 	#--- save the frame-level feature vectors to files
 	for t in range(features.size(0)):
 		id_frame = t+1

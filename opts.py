@@ -6,14 +6,29 @@ parser.add_argument('--dataset', type=str, default= "hmdb_ucf", choices=["hmdb_u
 # parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf_small.txt")
 parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf.txt")
 parser.add_argument('--modality', type=str, default = 'RGB', choices=['RGB', 'Flow', 'RGBDiff', 'RGBDiff2', 'RGBDiffplus'])
+parser.add_argument('--source', type=str, default= 'ucf101')
+parser.add_argument('--target', type=str, default= 'hmdb51')
+
 # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
 # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
 # parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
 parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
 parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
 parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
+# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
+# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt" ,type=str)
+# parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
+# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/list_kinetics_train_gameplay_kinetics-feature.txt", type=str)
+# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/list_gameplay_train_gameplay_kinetics-feature.txt" ,type=str)
+# parser.add_argument('--val_list', default= '/home/xinyue/dataset/list_gameplay_val_gameplay_kinetics-feature.txt', type=str)
 parser.add_argument('--if_trm', default= True, type = bool, help= 'if replace temporal relation module with fc layer')
 parser.add_argument('--trm_bottleneck', default= 256, type = int, help=' original 256')
+parser.add_argument('--use_mydata', default= False, type= bool)
+
+parser.add_argument('--use_attention', default= True, type= bool)
+parser.add_argument('--share_mapping', default=True, type = bool)
+parser.add_argument('--method', default= 'path_gen', type= str)
+parser.add_argument('--use_cdan', default= False, type = bool)
 # ========================= Model Configs ==========================
 # parser.add_argument('--add_fc', default=0, type=int, metavar='M',
 #                     help='number of additional fc layers (excluding the last fc layer) (e.g. 0, 1, 2, ...)')
@@ -22,8 +37,8 @@ parser.add_argument('--add_fc', default=1, type=int, metavar='M',
 
 parser.add_argument('--arch', type=str, default="resnet101")
 parser.add_argument('--pretrained', type=str, default="none")
-parser.add_argument('--num_segments', type=int, default=40)
-parser.add_argument('--val_segments', type=int, default=40)
+parser.add_argument('--num_segments', type=int, default=15)
+parser.add_argument('--val_segments', type=int, default=15)
 parser.add_argument('--fc_dim', type=int, default=512, help='dimension of added fc')
 parser.add_argument('--baseline_type', type=str, default='frame',
                     choices=['frame', 'video', 'tsn'])
@@ -83,7 +98,7 @@ parser.add_argument('--place_adv', default=['N', 'Y', 'Y'], type=str, nargs="+",
 parser.add_argument('--pretrain_source', default=False, action="store_true", help='perform source-only training before DA')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
-parser.add_argument('-b', '--batch_size', default=[32,32,32], type=int, nargs="+", # 128 74 128 #64,74,128
+parser.add_argument('-b', '--batch_size', default=[16,16,16], type=int, nargs="+", # 128 74 128 #64,74,128
                     metavar='N', help='mini-batch size ([source, target, testing])')
 parser.add_argument('--lr', '--learning_rate', default=0.01, type=float, # 3e-2
                     metavar='LR', help='initial learning rate')

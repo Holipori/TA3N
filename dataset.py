@@ -57,6 +57,14 @@ class TSNDataSet(data.Dataset):
                 feat = [torch.load(feat_path)]
             except:
                 print(Back.RED + feat_path)
+            if feat[0].shape[-1] == 100352:
+                # print(feat[0].shape)
+                pass
+            else:
+                print(
+                    'nono'
+                )
+                # raise AssertionError
             return feat
 
         elif self.modality == 'Flow':

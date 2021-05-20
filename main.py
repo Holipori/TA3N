@@ -26,6 +26,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import argparse
 import deepspeed
+from dataset_extr_feat import VideoDataset
+
+from torch.utils.data import DataLoader
 matplotlib.use('Agg')
 
 np.random.seed(1)
@@ -212,38 +215,50 @@ def main():
 		weight_domain_loss = torch.Tensor([1/num_source_train, 1/num_target_train]).cuda()
 
 	# data loading (always need to load the testing data)
-	val_segments = args.val_segments if args.val_segments > 0 else args.num_segments
-	val_set = TSNDataSet("", args.val_list, num_dataload=num_val, num_segments=val_segments,
-						 new_length=data_length, modality=args.modality,
-						 image_tmpl="img_{:05d}.t7" if args.modality in ["RGB", "RGBDiff", "RGBDiff2",
-																		  "RGBDiffplus"] else args.flow_prefix + "{}_{:05d}.t7",
-						 random_shift=False,
-						 test_mode=True,
-						 )
-	val_loader = torch.utils.data.DataLoader(val_set, batch_size=args.batch_size[2], shuffle=False,
-											 num_workers=args.workers, pin_memory=True)
+	if args.use_mydata:
+		val_loader = DataLoader(VideoDataset(dataset=args.target, split='val', clip_len=args.val_segments),
+								batch_size=args.batch_size[2], num_workers=4)
+	else:
+		val_segments = args.val_segments if args.val_segments > 0 else args.num_segments
+		val_set = TSNDataSet("", args.val_list, num_dataload=num_val, num_segments=val_segments,
+							 new_length=data_length, modality=args.modality,
+							 image_tmpl="img_{:05d}.t7" if args.modality in ["RGB", "RGBDiff", "RGBDiff2",
+																			  "RGBDiffplus"] else args.flow_prefix + "{}_{:05d}.t7",
+							 random_shift=False,
+							 test_mode=True,
+							 )
+		val_loader = torch.utils.data.DataLoader(val_set, batch_size=args.batch_size[2], shuffle=False,
+												 num_workers=args.workers, pin_memory=True)
 
 
 	if not args.evaluate:
-		source_set = TSNDataSet("", args.train_source_list, num_dataload=num_source_train, num_segments=args.num_segments,
-								new_length=data_length, modality=args.modality,
-								image_tmpl="img_{:05d}.t7" if args.modality in ["RGB", "RGBDiff", "RGBDiff2", "RGBDiffplus"] else args.flow_prefix+"{}_{:05d}.t7",
-								random_shift=False,
-								test_mode=True,
-								)
+		if args.use_mydata:
+			source_loader = DataLoader(VideoDataset(dataset=args.source, split='train', clip_len=args.num_segments),
+									   batch_size=args.batch_size[0], shuffle=True,
+									   num_workers=4)
+			target_loader = DataLoader(VideoDataset(dataset=args.target, split='test', clip_len=args.val_segments),
+									   batch_size=args.batch_size[1],
+									   num_workers=4)
+		else:
+			source_set = TSNDataSet("", args.train_source_list, num_dataload=num_source_train, num_segments=args.num_segments,
+									new_length=data_length, modality=args.modality,
+									image_tmpl="img_{:05d}.t7" if args.modality in ["RGB", "RGBDiff", "RGBDiff2", "RGBDiffplus"] else args.flow_prefix+"{}_{:05d}.t7",
+									random_shift=False,
+									test_mode=True,
+									)
 
-		source_sampler = torch.utils.data.sampler.RandomSampler(source_set)
-		source_loader = torch.utils.data.DataLoader(source_set, batch_size=args.batch_size[0], shuffle=False, sampler=source_sampler, num_workers=args.workers, pin_memory=True)
+			source_sampler = torch.utils.data.sampler.RandomSampler(source_set)
+			source_loader = torch.utils.data.DataLoader(source_set, batch_size=args.batch_size[0], shuffle=False, sampler=source_sampler, num_workers=args.workers, pin_memory=True)
 
-		target_set = TSNDataSet("", args.train_target_list, num_dataload=num_target_train, num_segments=args.num_segments,
-								new_length=data_length, modality=args.modality,
-								image_tmpl="img_{:05d}.t7" if args.modality in ["RGB", "RGBDiff", "RGBDiff2", "RGBDiffplus"] else args.flow_prefix + "{}_{:05d}.t7",
-								random_shift=False,
-								test_mode=True,
-								)
+			target_set = TSNDataSet("", args.train_target_list, num_dataload=num_target_train, num_segments=args.num_segments,
+									new_length=data_length, modality=args.modality,
+									image_tmpl="img_{:05d}.t7" if args.modality in ["RGB", "RGBDiff", "RGBDiff2", "RGBDiffplus"] else args.flow_prefix + "{}_{:05d}.t7",
+									random_shift=False,
+									test_mode=True,
+									)
 
-		target_sampler = torch.utils.data.sampler.RandomSampler(target_set)
-		target_loader = torch.utils.data.DataLoader(target_set, batch_size=args.batch_size[1], shuffle=False, sampler=target_sampler, num_workers=args.workers, pin_memory=True)
+			target_sampler = torch.utils.data.sampler.RandomSampler(target_set)
+			target_loader = torch.utils.data.DataLoader(target_set, batch_size=args.batch_size[1], shuffle=False, sampler=target_sampler, num_workers=args.workers, pin_memory=True)
 
 	# --- Optimizer ---#
 	# define loss function (criterion) and optimizer
@@ -406,16 +421,31 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		batch_source_ori = source_size_ori[0]
 		batch_target_ori = target_size_ori[0]
 		# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
-		if batch_source_ori < args.batch_size[0]:
-			dummy = True
-			source_data_dummy = torch.zeros(args.batch_size[0] - batch_source_ori, source_size_ori[1], source_size_ori[2])
-			source_data = torch.cat((source_data, source_data_dummy))
-		if batch_target_ori < args.batch_size[1]:
-			target_data_dummy = torch.zeros(args.batch_size[1] - batch_target_ori, target_size_ori[1], target_size_ori[2])
-			target_data = torch.cat((target_data, target_data_dummy))
-		if source_label.size()[0] < args.batch_size[0]:
-			source_label_dummy = torch.ones(args.batch_size[0] - source_label.size()[0], source_size_ori[1], source_size_ori[2])*13 # total class number + 1
-			source_label = torch.cat((source_label, source_label_dummy))
+		if args.use_mydata:
+			if batch_source_ori < args.batch_size[0]:
+				dummy = True
+				source_data_dummy = torch.zeros(args.batch_size[0] - batch_source_ori, source_size_ori[1],
+												source_size_ori[2], source_size_ori[3], source_size_ori[4])
+				source_data = torch.cat((source_data, source_data_dummy))
+			if batch_target_ori < args.batch_size[1]:
+				target_data_dummy = torch.zeros(args.batch_size[1] - batch_target_ori, target_size_ori[1],
+												target_size_ori[2], target_size_ori[3], target_size_ori[4])
+				target_data = torch.cat((target_data, target_data_dummy))
+			# if source_label.size()[0] < args.batch_size[0]:
+			# 	source_label_dummy = torch.ones(args.batch_size[0] - source_label.size()[0], source_size_ori[1],
+			# 									source_size_ori[2]) * 12  # total class number + 1
+			# 	source_label = torch.cat((source_label, source_label_dummy))
+		else:
+			if batch_source_ori < args.batch_size[0]:
+				dummy = True
+				source_data_dummy = torch.zeros(args.batch_size[0] - batch_source_ori, source_size_ori[1], source_size_ori[2])
+				source_data = torch.cat((source_data, source_data_dummy))
+			if batch_target_ori < args.batch_size[1]:
+				target_data_dummy = torch.zeros(args.batch_size[1] - batch_target_ori, target_size_ori[1], target_size_ori[2])
+				target_data = torch.cat((target_data, target_data_dummy))
+			# if source_label.size()[0] < args.batch_size[0]:
+			# 	source_label_dummy = torch.ones(args.batch_size[0] - source_label.size()[0])*13 # total class number + 1
+			# 	source_label = torch.cat((source_label, source_label_dummy))
 
 		# add dummy tensors to make sure batch size can be divided by gpu #
 		if source_data.size(0) % gpu_count != 0:
@@ -444,9 +474,9 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		#====== pre-train source data ======#
 		if args.pretrain_source:
 			print('pretraining')
-			optimizer = torch.optim.Adam(model.parameters(), 0.1, weight_decay=args.weight_decay)
+			# optimizer = torch.optim.Adam(model.parameters(), 0.1, weight_decay=args.weight_decay)
 			#------ forward pass data again ------#
-			_, out_source, out_source_2, _, _, _, _, _, _, _, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_,avg_loss, loss_feature, loss_sdtw = model(source_data, source_label, target_data, beta, mu, is_train=True, reverse=False, batchsize = int(batch_source_ori/gpu_count), dummy = dummy)
+			_, out_source, out_source_2, _, _, _, _, _, _, _, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_,avg_loss, cdan_loss, loss_sdtw = model(source_data, source_label, target_data, beta, mu, is_train=True, reverse=False, batchsize = int(batch_source_ori/gpu_count), dummy = dummy)
 
 			# ignore dummy tensors
 			out_source = out_source[:batch_source_ori]
@@ -459,7 +489,8 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 
 			loss = criterion(out, label)
 			# loss = criterion(source_sdtw_out, label)
-			loss += sum(loss_sdtw)
+			if args.use_cdan:
+				loss += sum(cdan_loss)
 			print(loss)
 			# loss += sum(loss_feature)
 			if args.ens_DA == 'MCD' and args.use_target != 'none': # NO
@@ -481,10 +512,10 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 
 			optimizer.step()
 
-		optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
-									nesterov=True)
+		# optimizer = torch.optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay,
+		# 							nesterov=True)
 		#====== forward pass data ======#
-		attn_source, out_source, out_source_2, pred_domain_source, feat_source, attn_target, out_target, out_target_2, pred_domain_target, feat_target, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, loss_feature, loss_sdtw = model(source_data, source_label, target_data, beta, mu, is_train=True, reverse=False , batchsize = int(batch_source_ori/gpu_count), dummy = dummy)
+		attn_source, out_source, out_source_2, pred_domain_source, feat_source, attn_target, out_target, out_target_2, pred_domain_target, feat_target, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, cdan_loss, loss_sdtw = model(source_data, source_label, target_data, beta, mu, is_train=True, reverse=False , batchsize = int(batch_source_ori/gpu_count), dummy = dummy)
 
 		# ignore dummy tensors
 		attn_source, out_source, out_source_2, pred_domain_source, feat_source = removeDummy(attn_source, out_source, out_source_2, pred_domain_source, feat_source, batch_source_ori)
@@ -524,66 +555,16 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		losses_c.update(loss_classification.item(), out_source.size(0)) # pytorch 0.4.X
 		loss = loss_classification
 		# loss = criterion(source_sdtw_out, label)
-		loss += sum(loss_sdtw)
+		if args.use_cdan:
+			loss += sum(cdan_loss)
 		print(loss)
 		# loss += sum(loss_feature)
 
 		# 2. calculate the loss for DA
 		# (I) discrepancy-based approach: discrepancy loss
-		if args.dis_DA != 'none' and args.use_target != 'none': # skipped
-			loss_discrepancy = 0
-
-			kernel_muls = [2.0]*2
-			kernel_nums = [2, 5]
-			fix_sigma_list = [None]*2
-
-			if args.dis_DA == 'JAN': #no
-				# ignore the features from shared layers
-				feat_source_sel = feat_source[:-args.add_fc]
-				feat_target_sel = feat_target[:-args.add_fc]
-
-				size_loss = min(feat_source_sel[0].size(0), feat_target_sel[0].size(0))  # choose the smaller number
-				feat_source_sel = [feat[:size_loss] for feat in feat_source_sel]
-				feat_target_sel = [feat[:size_loss] for feat in feat_target_sel]
-
-				loss_discrepancy += JAN(feat_source_sel, feat_target_sel, kernel_muls=kernel_muls, kernel_nums=kernel_nums, fix_sigma_list=fix_sigma_list, ver=2)
-
-			else:
-				# extend the parameter list for shared layers
-				kernel_muls.extend([kernel_muls[-1]]*args.add_fc)
-				kernel_nums.extend([kernel_nums[-1]]*args.add_fc)
-				fix_sigma_list.extend([fix_sigma_list[-1]]*args.add_fc)
-
-				for l in range(0, args.add_fc + 2):  # loss from all the features (+2 because of frame-aggregation layer + final fc layer)
-					if args.place_dis[l] == 'Y':
-						# select the data for calculating the loss (make sure source # == target #)
-						size_loss = min(feat_source[l].size(0), feat_target[l].size(0)) # choose the smaller number
-						# select
-						feat_source_sel = feat_source[l][:size_loss]
-						feat_target_sel = feat_target[l][:size_loss]
-
-						# break into multiple batches to avoid "out of memory" issue
-						size_batch = min(256,feat_source_sel.size(0))
-						feat_source_sel = feat_source_sel.view((-1,size_batch) + feat_source_sel.size()[1:])
-						feat_target_sel = feat_target_sel.view((-1,size_batch) + feat_target_sel.size()[1:])
-
-						if args.dis_DA == 'CORAL':
-							losses_coral = [CORAL(feat_source_sel[t], feat_target_sel[t]) for t in range(feat_source_sel.size(0))]
-							loss_coral = sum(losses_coral)/len(losses_coral)
-							loss_discrepancy += loss_coral
-						elif args.dis_DA == 'DAN':
-							losses_mmd = [mmd_rbf(feat_source_sel[t], feat_target_sel[t], kernel_mul=kernel_muls[l], kernel_num=kernel_nums[l], fix_sigma=fix_sigma_list[l], ver=2) for t in range(feat_source_sel.size(0))]
-							loss_mmd = sum(losses_mmd) / len(losses_mmd)
-
-							loss_discrepancy += loss_mmd
-						else:
-							raise NameError('not in dis_DA!!!')
-
-			losses_d.update(loss_discrepancy.item(), feat_source[0].size(0))
-			loss += alpha * loss_discrepancy # skipped
-
 		# (II) adversarial discriminative model: adversarial loss
-		if args.adv_DA != 'none' and args.use_target != 'none':
+		if args.adv_DA != 'none' and args.use_target != 'none' and args.use_cdan == False:
+			print('comin')
 		# if 0:
 			loss_adversarial = 0
 			pred_domain_all = []
@@ -615,16 +596,12 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 					loss_adversarial += loss_adversarial_single
 
 			losses_a.update(loss_adversarial.item(), pred_domain.size(0))
-			print('qian:',loss)
+			# print('qian:',loss)
 			loss += loss_adversarial
-			print('hou:', loss)
+			# print('hou:', loss)
 
 		# (III) other loss
 		# 1. entropy loss for target data
-		if args.add_loss_DA == 'target_entropy' and args.use_target != 'none': # NO
-			loss_entropy = cross_entropy_soft(out_target)
-			losses_e.update(loss_entropy.item(), out_target.size(0))
-			loss += gamma * loss_entropy # skipped
 
 		# 2. discrepancy loss for MCD (CVPR 18)
 		# if args.ens_DA == 'MCD' and args.use_target != 'none':
@@ -793,19 +770,35 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 		val_size_ori = val_data.size()  # original shape
 		batch_val_ori = val_size_ori[0]
 
-		# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
-		if batch_val_ori < args.batch_size[2]:
-			dummy = True
-			val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
-			val_data = torch.cat((val_data, val_data_dummy))
-		if val_label.size()[0] < args.batch_size[2]:
-			val_label_dummy = torch.ones(args.batch_size[2] - batch_val_ori).long()*12 # total class number
-			val_label = torch.cat((val_label, val_label_dummy))
+		if args.use_mydata:
+			if batch_val_ori < args.batch_size[2]:
+				dummy = True
+				val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2],
+											 val_size_ori[3], val_size_ori[4])
+				val_data = torch.cat((val_data, val_data_dummy))
+			if val_label.size()[0] < args.batch_size[2]:
+				val_label_dummy = torch.ones(args.batch_size[2] - batch_val_ori).long() * 12  # total class number
+				val_label = torch.cat((val_label, val_label_dummy))
 
-		# add dummy tensors to make sure batch size can be divided by gpu #
-		if val_data.size(0) % gpu_count != 0:
-			val_data_dummy = torch.zeros(gpu_count - val_data.size(0) % gpu_count, val_data.size(1), val_data.size(2))
-			val_data = torch.cat((val_data, val_data_dummy))
+			# add dummy tensors to make sure batch size can be divided by gpu #
+			if val_data.size(0) % gpu_count != 0:
+				val_data_dummy = torch.zeros(gpu_count - val_data.size(0) % gpu_count, val_data.size(1),
+											 val_data.size(2))
+				val_data = torch.cat((val_data, val_data_dummy))
+		else:
+			# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
+			if batch_val_ori < args.batch_size[2]:
+				dummy = True
+				val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
+				val_data = torch.cat((val_data, val_data_dummy))
+			if val_label.size()[0] < args.batch_size[2]:
+				val_label_dummy = torch.ones(args.batch_size[2] - batch_val_ori).long()*12 # total class number
+				val_label = torch.cat((val_label, val_label_dummy))
+
+			# add dummy tensors to make sure batch size can be divided by gpu #
+			if val_data.size(0) % gpu_count != 0:
+				val_data_dummy = torch.zeros(gpu_count - val_data.size(0) % gpu_count, val_data.size(1), val_data.size(2))
+				val_data = torch.cat((val_data, val_data_dummy))
 
 		val_label = val_label.cuda(non_blocking=True)
 		with torch.no_grad():
@@ -814,7 +807,7 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 				val_label_frame = val_label.unsqueeze(1).repeat(1,args.num_segments).view(-1) # expand the size for all the frames
 
 			# compute output
-			_, _, _, _, _, attn_val, out_val, out_val_2, pred_domain_val, feat_val, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_, avg_loss, loss_feature,loss_sdtw = model(val_data, val_label, val_data, [0]*len(args.beta), 0, is_train=False, reverse=False, batchsize = int(batch_val_ori/gpu_count), dummy = dummy)
+			_, _, _, _, _, attn_val, out_val, out_val_2, pred_domain_val, feat_val, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_, avg_loss, cdan_loss,loss_sdtw = model(val_data, val_label, val_data, [0]*len(args.beta), 0, is_train=False, reverse=False, batchsize = int(batch_val_ori/gpu_count), dummy = dummy)
 
 			# ignore dummy tensors
 			attn_val, out_val, out_val_2, pred_domain_val, feat_val = removeDummy(attn_val, out_val, out_val_2, pred_domain_val, feat_val, batch_val_ori)
@@ -832,7 +825,6 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 
 			if args.baseline_type == 'tsn':
 				pred = pred.view(val_label.size(0), -1, num_class).mean(dim=1) # average all the segments (needed when num_segments != val_segments)
-			print(pred.size())
 			loss = criterion(pred, label)
 			# loss = criterion(val_sdtw_out, label)
 			prec1, prec5 = accuracy(pred.data, label, topk=(1, 5))

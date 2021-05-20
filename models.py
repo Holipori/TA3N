@@ -64,9 +64,42 @@ class AdversarialNetwork(nn.Module):
 		# self.high = 1.0
 		# self.max_iter = 10000.0
 
-	def forward(self, feat, alpha):
+	def forward(self, feat, alpha=1):
 		# x = x * 1.0
 		x = GradReverse.apply(feat, 1)
+		# x.register_hook(grl_hook(alpha))
+		x = self.ad_layer1(x)
+		x = self.relu1(x)
+		x = self.dropout1(x)
+		x = self.ad_layer2(x)
+		x = self.relu2(x)
+		x = self.dropout2(x)
+		y = self.ad_layer3(x)
+		y = self.sigmoid(y)
+		return y
+
+class AdversarialNetwork_v(nn.Module):
+	def __init__(self, in_feature, hidden_size):
+		super(AdversarialNetwork_v, self).__init__()
+		self.ad_layer1 = nn.Linear(in_feature, hidden_size)
+		self.ad_layer2 = nn.Linear(hidden_size, hidden_size)
+		self.ad_layer3 = nn.Linear(hidden_size, 2)
+		self.relu1 = nn.ReLU()
+		self.relu2 = nn.ReLU()
+		self.dropout1 = nn.Dropout(0.5)
+		self.dropout2 = nn.Dropout(0.5)
+		self.sigmoid = nn.Sigmoid()
+		# self.apply(init_weights)
+		# self.iter_num = 0
+		# self.alpha = 10
+		# self.low = 0.0
+		# self.high = 1.0
+		# self.max_iter = 10000.0
+
+	def forward(self, feat, alpha=1):
+		# x = x * 1.0
+		# x = GradReverse.apply(feat, 1)
+		x = feat
 		# x.register_hook(grl_hook(alpha))
 		x = self.ad_layer1(x)
 		x = self.relu1(x)
@@ -111,6 +144,14 @@ class fc_l(nn.Module):
         x = self.fc(x)
         return x
 
+
+def Entropy(input_):
+	bs = input_.size(0)
+	epsilon = 1e-5
+	entropy = -input_ * torch.log(input_ + epsilon)
+	entropy = torch.sum(entropy, dim=1)
+	return entropy
+
 class VideoModel(nn.Module):
 	def __init__(self, num_class, baseline_type, frame_aggregation, modality,
 				train_segments=5, val_segments=25,
@@ -141,13 +182,32 @@ class VideoModel(nn.Module):
 		self.if_trm = if_trm
 		self.trm_bottleneck = trm_bottleneck
 
+		#cdan
+
+
+		# transformer, attention
+		self.d_model = 2048
+		# self.fc_tr = nn.Linear(2048, self.d_model).cuda()
+		self.enc_pos_encoding = torch.autograd.Variable(torch.empty((49, self.d_model)).cuda().uniform_(-0.1, 0.1),
+														requires_grad=True)
+		self.transformer = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
+										  num_encoder_layers=2, num_decoder_layers=0).cuda() # [seq_len, batch, d]
+		self.pool = nn.AdaptiveAvgPool2d((1, 1))
+
+		# temporal attention
+		self.enc_pos_encoding2 = torch.autograd.Variable(torch.empty((args.num_segments, self.d_model)).cuda().uniform_(-0.1, 0.1),
+														requires_grad=True)
+		self.transformer2 = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
+										  num_encoder_layers=2, num_decoder_layers=0).cuda()
+
+
 		# feature size
 		self.feature_size = 2048
 		# gtw
 		self.basis_num = 6
 		self.hidden_size2 = 2048
 		self.layer_num = 2
-		# self.path_gen = torch.nn.LSTM(self.feature_size, self.train_segments, self.layer_num )
+
 		# video classifier
 		self.video_cls = torch.nn.LSTM(self.feature_size, self.feature_size, 2 )
 		self.video_cls_fc = nn.Linear(self.feature_size, 256)
@@ -157,15 +217,31 @@ class VideoModel(nn.Module):
 		self.domain_cls_fc = nn.Linear(self.feature_size, 2)
 		self.domain_cls_fc2 = nn.Linear(256, 2)
 
-		# Q and B method
-		self.gamma = 60
-		self.Q_gen = torch.nn.LSTM(self.feature_size, self.gamma, self.layer_num )
+		if args.method == 'path_gen':
+			self.path_gen = torch.nn.LSTM(self.feature_size, self.train_segments, self.layer_num)
+		elif args.method == 'QB':
+			# Q and B method
+			self.gamma = 60
+			self.Q_gen = torch.nn.LSTM(self.feature_size, self.gamma, self.layer_num )
+			# self.H_gen = nn.Linear(self.feature_size, self.gamma)
+			self.H_gen = torch.nn.LSTM(self.feature_size, self.gamma, self.layer_num, batch_first=True)
+			# self.H_gen_fc = nn.Linear(256, self.gamma)
+			self.basis = torch.nn.Parameter(torch.randn(self.gamma, self.train_segments))
 
-		# self.path_gen = nn.Sequential(
-		# 	nn.Linear(self.feature_size * train_segments, self.hidden_size2),
-		# 	nn.BatchNorm1d(self.hidden_size2, affine=True),
-		# 	nn.ReLU(),
-		# 	nn.Linear(self.hidden_size2, self.basis_num)
+			self.H_gen_fc = nn.Sequential(
+					nn.Linear(self.feature_size, self.feature_size),
+					# nn.BatchNorm1d(self.feature_size, affine=True),
+					nn.ReLU(),
+					nn.Linear(self.feature_size, self.gamma)
+				)
+
+
+
+		# self.Q_gen = nn.Sequential(
+		# 	# nn.Linear(self.feature_size, self.hidden_size2),
+		# 	# nn.BatchNorm1d(self.hidden_size2, affine=True),
+		# 	# nn.ReLU(),
+		# 	nn.Linear(self.hidden_size2, self.gamma)
 		# )
 
 
@@ -175,37 +251,40 @@ class VideoModel(nn.Module):
 		self.hidden_size = 256
 		self.output_size = self.feature_size
 		self.group_number = 100
-		self.lstm = torch.nn.LSTM(2048,self.hidden_size) #input output
-		self.fc_mu = nn.Linear(self.hidden_size, self.output_size*self.group_number)
-		normal_(self.fc_mu.weight, 0, 1)
-		constant_(self.fc_mu.bias, 0)
-		self.fc_sigma = nn.Linear(self.hidden_size, self.output_size* self.group_number)
-		normal_(self.fc_sigma.weight, 0, 0.001)
-		constant_(self.fc_sigma.bias, 0)
-		self.fc_pi = nn.Linear(self.hidden_size, self.group_number)
-		normal_(self.fc_pi.weight, 0, 0.001)
-		constant_(self.fc_pi.bias, 0)
+		# self.lstm = torch.nn.LSTM(2048,self.hidden_size) #input output
+		# self.fc_mu = nn.Linear(self.hidden_size, self.output_size*self.group_number)
+		# normal_(self.fc_mu.weight, 0, 1)
+		# constant_(self.fc_mu.bias, 0)
+		# self.fc_sigma = nn.Linear(self.hidden_size, self.output_size* self.group_number)
+		# normal_(self.fc_sigma.weight, 0, 0.001)
+		# constant_(self.fc_sigma.bias, 0)
+		# self.fc_pi = nn.Linear(self.hidden_size, self.group_number)
+		# normal_(self.fc_pi.weight, 0, 0.001)
+		# constant_(self.fc_pi.bias, 0)
 
 
 
 
-		# rmdn correction
-		self.fc_feature_class0 = nn.Linear(self.output_size,256)
-		self.fc_feature_class1 = nn.Linear(256,num_class)
-		self.fc_feature_class2 = nn.Linear(256,num_class)
-		self.criterion =  torch.nn.CrossEntropyLoss(weight=torch.ones(num_class).cuda()).cuda()
+		# # rmdn correction
+		# self.fc_feature_class0 = nn.Linear(self.output_size,256)
+		# self.fc_feature_class1 = nn.Linear(256,num_class)
+		# self.fc_feature_class2 = nn.Linear(256,num_class)
+		# self.criterion =  torch.nn.CrossEntropyLoss(weight=torch.ones(num_class).cuda()).cuda()
 
 
 		# average sequence
-		self.sdtw = SoftDTW(True, gamma=1.0, normalize=False)
-		self.avg = torch.nn.Parameter(torch.rand(num_class,train_segments,self.output_size)) # class, frame, feature
+		# self.sdtw = SoftDTW(True, gamma=1.0, normalize=False)
+		# self.avg = torch.nn.Parameter(torch.rand(num_class,train_segments,self.output_size)) # class, frame, feature
 
 		# self.trm_bottleneck = self.output_size
-		self.netD = AdversarialNetwork(2048, 1024).cuda()
-
+		if args.use_cdan == True:
+			self.netD = AdversarialNetwork2(2048* self.num_class, 1024).cuda()
+		else:
+			self.netD = AdversarialNetwork(2048, 1024).cuda()
+		self.netD2 = AdversarialNetwork_v(2048, 1024).cuda()
 		# fc test
-		self.fc_layer = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
-		self.fc_layer2 = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
+		# self.fc_layer = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
+		# self.fc_layer2 = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
 
 		# RNN
 		self.n_layers = n_rnn
@@ -214,7 +293,7 @@ class VideoModel(nn.Module):
 		self.n_ts = n_ts # temporal segment
 
 		# Attention
-		self.use_attn = use_attn 
+		self.use_attn = use_attn
 		self.n_attn = n_attn
 		self.use_attn_frame = use_attn_frame
 
@@ -241,20 +320,21 @@ class VideoModel(nn.Module):
 		if partial_bn:
 			self.partialBN(True)
 
-	def feature_class(self, feature):
-		output = self.fc_feature_class0(feature)
-		output = self.relu(output)
-		output = self.fc_feature_class1(output)
-		return output
+	# def feature_class(self, feature):
+	# 	output = self.fc_feature_class0(feature)
+	# 	output = self.relu(output)
+	# 	output = self.fc_feature_class1(output)
+	# 	return output
 
 	def _prepare_DA(self, num_class, base_model): # convert the model to DA framework
-		if base_model == 'c3d': # C3D mode: in construction...
-			from C3D_model import C3D
-			model_test = C3D()
-			self.feature_dim = model_test.fc7.in_features
-		else:
-			model_test = getattr(torchvision.models, base_model)(True) # model_test is only used for getting the dim #
-			self.feature_dim = model_test.fc.in_features
+		# if base_model == 'c3d': # C3D mode: in construction...
+		# 	from C3D_model import C3D
+		# 	model_test = C3D()
+		# 	self.feature_dim = model_test.fc7.in_features
+		# else:
+		# 	model_test = getattr(torchvision.models, base_model)(True) # model_test is only used for getting the dim #
+		# 	self.feature_dim = model_test.fc.in_features
+		self.feature_dim = 2048
 
 		std = 0.001
 		feat_shared_dim = min(self.fc_dim, self.feature_dim) if self.add_fc > 0 and self.fc_dim > 0 else self.feature_dim
@@ -294,27 +374,35 @@ class VideoModel(nn.Module):
 			constant_(self.fc_feature_shared_3_source.bias, 0)
 
 		# 2. frame-level feature layers
-		self.fc_feature_source = nn.Linear(feat_shared_dim, feat_frame_dim)
-		normal_(self.fc_feature_source.weight, 0, std)
-		constant_(self.fc_feature_source.bias, 0)
+		# self.fc_feature_source = nn.Linear(feat_shared_dim, feat_frame_dim)
+		# normal_(self.fc_feature_source.weight, 0, std)
+		# constant_(self.fc_feature_source.bias, 0)
 
 		# 3. domain feature layers (frame-level)
-		self.fc_feature_domain = nn.Linear(feat_shared_dim, feat_frame_dim)
-		normal_(self.fc_feature_domain.weight, 0, std)
-		constant_(self.fc_feature_domain.bias, 0)
+		# self.fc_feature_domain = nn.Linear(feat_shared_dim, feat_frame_dim)
+		# normal_(self.fc_feature_domain.weight, 0, std)
+		# constant_(self.fc_feature_domain.bias, 0)
 
 		# 4. classifiers (frame-level)
 		self.fc_classifier_source = nn.Linear(feat_frame_dim * self.train_segments, num_class)
 		normal_(self.fc_classifier_source.weight, 0, std)
 		constant_(self.fc_classifier_source.bias, 0)
 
-		self.fc_classifier_source2 = nn.Linear(2048, num_class)
-		normal_(self.fc_classifier_source.weight, 0, std)
-		constant_(self.fc_classifier_source.bias, 0)
+		# self.fc_classifier_source2 = nn.Linear(2048, num_class)
+		# normal_(self.fc_classifier_source.weight, 0, std)
+		# constant_(self.fc_classifier_source.bias, 0)
 
 		self.fc_classifier_domain = nn.Linear(feat_frame_dim, 2)
 		normal_(self.fc_classifier_domain.weight, 0, std)
 		constant_(self.fc_classifier_domain.bias, 0)
+
+		if args.share_mapping == False:
+			self.fc_feature_shared_target = nn.Sequential(
+			   nn.Linear(self.feature_dim, self.output_size),
+			   nn.BatchNorm1d(self.output_size, affine=True),
+			   nn.ReLU(),
+			   nn.Linear(self.output_size, self.output_size),
+			)
 
 		if self.share_params == 'N':
 			self.fc_feature_shared_target = nn.Sequential(
@@ -339,12 +427,6 @@ class VideoModel(nn.Module):
 			normal_(self.fc_classifier_target.weight, 0, std)
 			constant_(self.fc_classifier_target.bias, 0)
 
-		# BN for the above layers
-		if self.use_bn != 'none':  # S & T: use AdaBN (ICLRW 2017) approach
-			self.bn_shared_S = nn.BatchNorm1d(feat_shared_dim)  # BN for the shared layers
-			self.bn_shared_T = nn.BatchNorm1d(feat_shared_dim)
-			self.bn_source_S = nn.BatchNorm1d(feat_frame_dim)  # BN for the source feature layers
-			self.bn_source_T = nn.BatchNorm1d(feat_frame_dim)
 
 		#------ aggregate frame-based features (frame feature --> video feature) ------#
 		if self.frame_aggregation == 'rnn': # 2. rnn
@@ -412,9 +494,9 @@ class VideoModel(nn.Module):
 		constant_(self.fc_feature_video_source_2.bias, 0)
 
 		# 2. domain feature layers (video-level)
-		self.fc_feature_domain_video = nn.Linear(feat_aggregated_dim, feat_video_dim)
-		normal_(self.fc_feature_domain_video.weight, 0, std)
-		constant_(self.fc_feature_domain_video.bias, 0)
+		# self.fc_feature_domain_video = nn.Linear(feat_aggregated_dim, feat_video_dim)
+		# normal_(self.fc_feature_domain_video.weight, 0, std)
+		# constant_(self.fc_feature_domain_video.bias, 0)
 
 		# 3. classifiers (video-level)
 		self.fc_classifier_video_source = nn.Linear(self.output_size, num_class)
@@ -632,12 +714,17 @@ class VideoModel(nn.Module):
 		# pred_fc_domain_video = self.fc_classifier_domain_video(feat_fc_domain_video)
 
 		return out
-	def domain_classifier_video(self, feat_video, beta = 1):
-		feat_video = feat_video.transpose(0,1)
+	def domain_classifier_video_pre(self, feat_video, beta = 1):
+		feat_video = feat_video.transpose(0, 1)
 		feat_video = GradReverse.apply(feat_video, 1)
 		out, (h, c) = self.domain_cls(feat_video)
 		out = out.transpose(0, 1)[:, -1, :]
-		pred_fc_domain_video = self.domain_cls_fc(out)
+		return out
+	def domain_classifier_video(self, feat_video, beta = 1):
+		feat_video = GradReverse.apply(feat_video, 1)
+		out = self.domain_classifier_video_pre(feat_video)
+		# pred_fc_domain_video = self.domain_cls_fc(out)
+		pred_fc_domain_video = self.netD2(out)
 		# print('shape:',pred_fc_domain_video.shape)
 
 		# feat_fc_domain_video = self.fc_feature_domain_video(feat_fc_domain_video)
@@ -663,61 +750,61 @@ class VideoModel(nn.Module):
 		pred_fc_domain_relation_video = pred_fc_domain_relation_video.view(-1,2)
 
 		return pred_fc_domain_relation_video
-
-	def domainAlign(self, input_S, input_T, is_train, name_layer, alpha, num_segments, dim):
-		input_S = input_S.view((-1, dim, num_segments) + input_S.size()[-1:])  # reshape based on the segments (e.g. 80 x 512 --> 16 x 1 x 5 x 512)
-		input_T = input_T.view((-1, dim, num_segments) + input_T.size()[-1:])  # reshape based on the segments
-
-		# clamp alpha
-		alpha = max(alpha,0.5)
-
-		# rearange source and target data
-		num_S_1 = int(round(input_S.size(0) * alpha))
-		num_S_2 = input_S.size(0) - num_S_1
-		num_T_1 = int(round(input_T.size(0) * alpha))
-		num_T_2 = input_T.size(0) - num_T_1
-
-		if is_train and num_S_2 > 0 and num_T_2 > 0:
-			input_source = torch.cat((input_S[:num_S_1], input_T[-num_T_2:]), 0)
-			input_target = torch.cat((input_T[:num_T_1], input_S[-num_S_2:]), 0)
-		else:
-			input_source = input_S
-			input_target = input_T
-
-		# adaptive BN
-		input_source = input_source.view((-1, ) + input_source.size()[-1:]) # reshape to feed BN (e.g. 16 x 1 x 5 x 512 --> 80 x 512)
-		input_target = input_target.view((-1, ) + input_target.size()[-1:])
-
-		if name_layer == 'shared':
-			input_source_bn = self.bn_shared_S(input_source)
-			input_target_bn = self.bn_shared_T(input_target)
-		elif 'trn' in name_layer:
-			input_source_bn = self.bn_trn_S(input_source)
-			input_target_bn = self.bn_trn_T(input_target)
-		elif name_layer == 'temconv_1':
-			input_source_bn = self.bn_1_S(input_source)
-			input_target_bn = self.bn_1_T(input_target)
-		elif name_layer == 'temconv_2':
-			input_source_bn = self.bn_2_S(input_source)
-			input_target_bn = self.bn_2_T(input_target)
-
-		input_source_bn = input_source_bn.view((-1, dim, num_segments) + input_source_bn.size()[-1:])  # reshape back (e.g. 80 x 512 --> 16 x 1 x 5 x 512)
-		input_target_bn = input_target_bn.view((-1, dim, num_segments) + input_target_bn.size()[-1:])  #
-
-		# rearange back to the original order of source and target data (since target may be unlabeled)
-		if is_train and num_S_2 > 0 and num_T_2 > 0:
-			input_source_bn = torch.cat((input_source_bn[:num_S_1], input_target_bn[-num_S_2:]), 0)
-			input_target_bn = torch.cat((input_target_bn[:num_T_1], input_source_bn[-num_T_2:]), 0)
-
-		# reshape for frame-level features
-		if name_layer == 'shared' or name_layer == 'trn_sum':
-			input_source_bn = input_source_bn.view((-1,) + input_source_bn.size()[-1:])  # (e.g. 16 x 1 x 5 x 512 --> 80 x 512)
-			input_target_bn = input_target_bn.view((-1,) + input_target_bn.size()[-1:])
-		elif name_layer == 'trn':
-			input_source_bn = input_source_bn.view((-1, num_segments) + input_source_bn.size()[-1:])  # (e.g. 16 x 1 x 5 x 512 --> 80 x 512)
-			input_target_bn = input_target_bn.view((-1, num_segments) + input_target_bn.size()[-1:])
-
-		return input_source_bn, input_target_bn
+	#
+	# def domainAlign(self, input_S, input_T, is_train, name_layer, alpha, num_segments, dim):
+	# 	input_S = input_S.view((-1, dim, num_segments) + input_S.size()[-1:])  # reshape based on the segments (e.g. 80 x 512 --> 16 x 1 x 5 x 512)
+	# 	input_T = input_T.view((-1, dim, num_segments) + input_T.size()[-1:])  # reshape based on the segments
+	#
+	# 	# clamp alpha
+	# 	alpha = max(alpha,0.5)
+	#
+	# 	# rearange source and target data
+	# 	num_S_1 = int(round(input_S.size(0) * alpha))
+	# 	num_S_2 = input_S.size(0) - num_S_1
+	# 	num_T_1 = int(round(input_T.size(0) * alpha))
+	# 	num_T_2 = input_T.size(0) - num_T_1
+	#
+	# 	if is_train and num_S_2 > 0 and num_T_2 > 0:
+	# 		input_source = torch.cat((input_S[:num_S_1], input_T[-num_T_2:]), 0)
+	# 		input_target = torch.cat((input_T[:num_T_1], input_S[-num_S_2:]), 0)
+	# 	else:
+	# 		input_source = input_S
+	# 		input_target = input_T
+	#
+	# 	# adaptive BN
+	# 	input_source = input_source.view((-1, ) + input_source.size()[-1:]) # reshape to feed BN (e.g. 16 x 1 x 5 x 512 --> 80 x 512)
+	# 	input_target = input_target.view((-1, ) + input_target.size()[-1:])
+	#
+	# 	if name_layer == 'shared':
+	# 		input_source_bn = self.bn_shared_S(input_source)
+	# 		input_target_bn = self.bn_shared_T(input_target)
+	# 	elif 'trn' in name_layer:
+	# 		input_source_bn = self.bn_trn_S(input_source)
+	# 		input_target_bn = self.bn_trn_T(input_target)
+	# 	elif name_layer == 'temconv_1':
+	# 		input_source_bn = self.bn_1_S(input_source)
+	# 		input_target_bn = self.bn_1_T(input_target)
+	# 	elif name_layer == 'temconv_2':
+	# 		input_source_bn = self.bn_2_S(input_source)
+	# 		input_target_bn = self.bn_2_T(input_target)
+	#
+	# 	input_source_bn = input_source_bn.view((-1, dim, num_segments) + input_source_bn.size()[-1:])  # reshape back (e.g. 80 x 512 --> 16 x 1 x 5 x 512)
+	# 	input_target_bn = input_target_bn.view((-1, dim, num_segments) + input_target_bn.size()[-1:])  #
+	#
+	# 	# rearange back to the original order of source and target data (since target may be unlabeled)
+	# 	if is_train and num_S_2 > 0 and num_T_2 > 0:
+	# 		input_source_bn = torch.cat((input_source_bn[:num_S_1], input_target_bn[-num_S_2:]), 0)
+	# 		input_target_bn = torch.cat((input_target_bn[:num_T_1], input_source_bn[-num_T_2:]), 0)
+	#
+	# 	# reshape for frame-level features
+	# 	if name_layer == 'shared' or name_layer == 'trn_sum':
+	# 		input_source_bn = input_source_bn.view((-1,) + input_source_bn.size()[-1:])  # (e.g. 16 x 1 x 5 x 512 --> 80 x 512)
+	# 		input_target_bn = input_target_bn.view((-1,) + input_target_bn.size()[-1:])
+	# 	elif name_layer == 'trn':
+	# 		input_source_bn = input_source_bn.view((-1, num_segments) + input_source_bn.size()[-1:])  # (e.g. 16 x 1 x 5 x 512 --> 80 x 512)
+	# 		input_target_bn = input_target_bn.view((-1, num_segments) + input_target_bn.size()[-1:])
+	#
+	# 	return input_source_bn, input_target_bn
 
 	def normal(self, mu, sigma):
 		''' Gaussian PDF using keras' backend abstraction '''
@@ -797,7 +884,7 @@ class VideoModel(nn.Module):
 		out = np.zeros([gamma, l])
 		for i in range(gamma):
 			for j in range(l):
-				out[i, j] = np.cos(j * (i * np.pi / 4) / l)
+				out[i, j] = np.cos(j * (i * np.pi / 6) / l)
 		return torch.from_numpy(out).float().cuda()
 
 	def lstm_vid_classifier(self, feat):
@@ -805,72 +892,113 @@ class VideoModel(nn.Module):
 		out = out.transpose(0, 1)[:, -1, :]
 		out = self.video_cls_fc(out)
 		out = F.relu(out)
-		out = F.dropout(out, p= 0.5)
+		# out = F.dropout(out, p= 0.5)
 		out = self.video_cls_fc2(out)
 		return out.contiguous()
 
+	def gen_H(self,feat):
+		out, (h, c)  = self.H_gen(feat)
+		out = torch.sum(out, 0)/feat.shape[0]
+		# out = self.H_gen_fc(out)
+		out = out.transpose(0,1)
+		return out
+
+	def gen_Q(self,feat):
+		#fc
+		# shape = feat.shape
+		# feat = feat.view(-1, shape[-1])
+		# out = self.Q_gen(feat)
+		# out = out.view(shape[0],shape[1], -1)
+
+		feat = feat.transpose(0, 1)
+		out, (h, c) = self.Q_gen(feat)
+		out = out.transpose(0, 1)
+
+		return out
+
+	def cdan(self, feat, pred, domain):
+		'''
+		feat: [batch * sequence_len, d] for frame
+			  [batch , d] for video
+		pred: [batch * sequence_len, num_class] for frame
+			  [batch , num_class] for video
+		'''
+		features = feat.view(-1, self.output_size)
+		pred = pred.view(-1, self.num_class)
+		# return
+		softmax_output = F.softmax(pred, dim=1)
+
+		#
+		# target_softmax_output = F.softmax(pred, dim=1)  # .detach()
+		# features = torch.cat([source_features, target_features], dim=0)
+		# softmax_output = torch.cat([source_softmax_output, target_softmax_output], dim=0)
+		#
+		op_out = torch.bmm(softmax_output.unsqueeze(2), features.unsqueeze(1))
+		features = op_out.view(-1, softmax_output.size(1) * features.size(1))
+
+		entropy = Entropy(softmax_output)
+		entropy = GradReverse.apply(entropy, 1)
+		# entropy.register_hook(grl_hook(alpha))
+		entropy = 1.0 + torch.exp(-entropy)
+
+		# source_mask = torch.ones_like(entropy)
+		# source_mask[features.size(0) // 2:] = 0
+		# source_weight = entropy * source_mask
+		# target_mask = torch.ones_like(entropy)
+		# target_mask[0:features.size(0) // 2] = 0
+		# target_weight = entropy * target_mask
+		weight = entropy/ torch.sum(entropy).detach().item()
+		# weight = source_weight / torch.sum(source_weight).detach().item() + \
+		# 		 target_weight / torch.sum(target_weight).detach().item()
+		if domain == 'source':
+			dc_labels = torch.from_numpy(np.array([[1]] * features.size(0))).float().cuda()
+		elif domain == 'target':
+			dc_labels = torch.from_numpy(np.array([[0]] * features.size(0))).float().cuda()
+		G_loss = torch.sum(weight.view(-1, 1) * nn.BCELoss(reduction='none')(self.netD(features), dc_labels)) / torch.sum(weight).detach().item()
+		return G_loss
 
 	def forward(self, input_source, source_label, input_target, beta, mu, is_train, reverse, batchsize = 0, dummy = False):
-		# print(input_source.size())
-		# input_source.requires_grad = True
-		# input_target.requires_grad = True
-		flag = 0 # if 1, then rmdn
-		source_means = torch.zeros(1,5).cuda()
-		if flag:
-			hidden_temp = torch.zeros(1,input_source.size(1),self.hidden_size).cuda()
-			hidden_init = (hidden_temp, hidden_temp) #zhe li you wen ti
-			self.lstm.flatten_parameters()
-			input_source_lstm_output, input_source_lstm_hidden = self.lstm(input_source,hidden_init)
-			#
-			input_target_lstm_output, input_target_lstm_hidden = self.lstm(input_target, hidden_init)
 
-			source_means = self.fc_mu(input_source_lstm_output)
-			source_dim0 = source_means.size()[0]
-			source_dim1 = source_means.size()[1]
-			source_means = source_means.view(-1,self.output_size)
-			# source_means = self.means_adjust(source_means)
-			#
-			target_means = self.fc_mu(input_target_lstm_output)
-			target_dim0 = target_means.size()[0]
-			target_dim1 = target_means.size()[1]
-			target_means = target_means.view(-1, self.output_size)
-			# target_means = self.means_adjust(target_means)
-			# print('weight:',self.fc_mu.weight)
-			# print('grad:',self.fc_mu.weight.grad)
-
-			source_sigma = self.fc_sigma(input_source_lstm_output)
-			source_sigma = torch.exp(source_sigma)
-			source_sigma = source_sigma.view(-1,self.output_size)
-			#
-			target_sigma = self.fc_sigma(input_target_lstm_output)
-			target_sigma = torch.exp(target_sigma)
-			target_sigma = target_sigma.view(-1, self.output_size)
-
-			source_pi = self.fc_pi(input_source_lstm_output)
-			source_pi = source_pi.view(source_dim0 * source_dim1, -1)
-			source_pi = F.softmax(source_pi)
-			source_pi = source_pi.view(source_dim0 * source_dim1 * self.group_number, -1)
-			#
-			target_pi = self.fc_pi(input_target_lstm_output)
-			target_pi = target_pi.view(target_dim0 * target_dim1, -1)
-			target_pi = F.softmax(target_pi)
-			target_pi = target_pi.view(target_dim0 * target_dim1 * self.group_number, -1)
-
-			dim_range = torch.range(-self.output_size/2,self.output_size/2-1).cuda()
-			# dim_range_source = dim_range.expand(source_dim0 * source_dim1 * self.group_number, self.output_size)
-			# dim_range_target = dim_range.expand(target_dim0 * target_dim1 * self.group_number, self.output_size)
-
-			self.feature_gmm_source = torch.zeros(source_dim0 * source_dim1 * self.group_number , self.output_size).cuda()
-			self.feature_gmm_source = source_pi *self.normal(source_means, source_sigma)(dim_range)
-			self.feature_gmm_source = self.feature_gmm_source.view(source_dim0,source_dim1,self.group_number, -1)
-			self.feature_gmm_source = torch.sum(self.feature_gmm_source, 2)
-			#
-			self.feature_gmm_target = torch.zeros(target_dim0 * target_dim1 * self.group_number, self.output_size).cuda()
-			self.feature_gmm_target = target_pi * self.normal(target_means, target_sigma)(dim_range)
-			self.feature_gmm_target = self.feature_gmm_target.view(target_dim0, target_dim1, self.group_number, -1)
-			self.feature_gmm_target = torch.sum(self.feature_gmm_target, 2)
 		batch_source = input_source.size()[0]
 		batch_target = input_target.size()[0]
+		########################===================== attention =======
+		if args.use_attention:
+			# [b, l, 7,7,2048] -> [ b, l, 49, 2048]
+			# [b, l, 2048, 7, 7] -> [ b, l,  2048, 49] this ->[ b, l, 49, 2048]
+			input_source = input_source.view(batch_source, input_source.shape[1], 2048, 49).transpose(-1,-2)
+			input_target = input_target.view(batch_target, input_target.shape[1], 2048, 49).transpose(-1,-2)
+
+			# input_source = self.fc_tr(input_source)
+			# input_target = self.fc_tr(input_target)
+			input_source += self.enc_pos_encoding.cuda()
+			input_target += self.enc_pos_encoding.cuda()
+
+
+			# [ b, l, 49, d]-> [ b * l, 49, d] -> [49, b* l , d]
+			input_source = input_source.view(-1, input_source.shape[2], input_source.shape[-1])
+			input_source = self.transformer.encoder(input_source.transpose(0, 1))  # output [49, b* l , d]
+			input_target = input_target.view(-1, input_target.shape[2], input_target.shape[-1])
+			input_target = self.transformer.encoder(input_target.transpose(0, 1))  # output [49, b* l , d]
+
+
+			input_source = input_source.transpose(0, 1).view(batch_source, -1, 49, input_source.shape[-1]).transpose(2, 3)
+			input_source = input_source.view(input_source.shape[0], input_source.shape[1], input_source.shape[2], 7, 7)
+			input_source = self.pool(input_source).squeeze(-1).squeeze(-1)
+			input_target = input_target.transpose(0, 1).view(batch_source, -1, 49, input_target.shape[-1]).transpose(2, 3)
+			input_target = input_target.view(input_target.shape[0], input_target.shape[1], input_target.shape[2], 7, 7)
+			input_target = self.pool(input_target).squeeze(-1).squeeze(-1)
+
+		else:
+			input_source = input_source.view(input_source.shape[0],input_source.shape[1],self.output_size,7,7)
+			input_target = input_target.view(input_target.shape[0],input_target.shape[1],self.output_size,7,7)
+
+			input_source = self.pool(input_source).squeeze(-1).squeeze(-1)
+
+			input_target = self.pool(input_target).squeeze(-1).squeeze(-1)
+		###########=============== end ========
+		flag = 0 # if 1, then rmdn
+		source_means = torch.zeros(1,5).cuda()
+		cdan_loss = torch.zeros(1).cuda()
 		# batch_source = self.feature_gmm_source.size()[0]
 		# batch_target = self.feature_gmm_target.size()[0]
 
@@ -898,43 +1026,15 @@ class VideoModel(nn.Module):
 		#=== shared layers ===#
 		# need to separate BN for source & target ==> otherwise easy to overfit to source data
 		# ====mapping ====== #
-		if self.add_fc == 1:
-			# raise ValueError(Back.RED + 'not enough fc layer')
+		# raise ValueError(Back.RED + 'not enough fc layer')
 
-			feat_fc_source = self.fc_feature_shared_source(feat_base_source)
-			feat_fc_target = self.fc_feature_shared_target(feat_base_target) if self.share_params == 'N' else self.fc_feature_shared_source(feat_base_target)
+		feat_fc_source = self.fc_feature_shared_source(feat_base_source)
+		feat_fc_target = self.fc_feature_shared_target(feat_base_target) if args.share_mapping == False else self.fc_feature_shared_source(feat_base_target)
 
-			# adaptive BN
-			if self.use_bn != 'none': # skip
-				feat_fc_source, feat_fc_target = self.domainAlign(feat_fc_source, feat_fc_target, is_train, 'shared', self.alpha.item(), num_segments, 1)
-
-			# feat_fc_source = self.relu(feat_fc_source)
-			# feat_fc_target = self.relu(feat_fc_target)
-			# feat_fc_source = self.dropout_i(feat_fc_source)
-			# feat_fc_target = self.dropout_i(feat_fc_target)
-		else:
-			feat_fc_source = feat_base_source
-			feat_fc_target = feat_base_target
+		# adaptive BN
 
 		##== rmdn correction ===##
-		if not dummy:
-			output = self.feature_class(feat_fc_source[:batchsize*num_segments])
-			label = source_label[:batchsize].unsqueeze(1)
-			label = label.expand(batchsize,num_segments)
-			label = label.flatten()
-			loss_feature = self.criterion(output, label)
-		else:
-			for i in range(len(source_label)):
-				if source_label[i] == self.num_class:
-					l = i
-					break
-				elif i == len(source_label)-1:
-					l = i+1
-			output = self.feature_class(feat_fc_source[:l * num_segments])
-			label = source_label[:l].unsqueeze(1)
-			label = label.expand(l, num_segments)
-			label = label.flatten()
-			loss_feature = self.criterion(output, label)
+		loss_feature = torch.zeros(1).cuda()
 
 
 		# print(loss_feature)
@@ -943,27 +1043,66 @@ class VideoModel(nn.Module):
 		feat_all_source.append(feat_fc_source.view((batch_source, num_segments) + feat_fc_source.size()[-1:])) # reshape ==> 1st dim is the batch size
 		feat_all_target.append(feat_fc_target.view((batch_target, num_segments) + feat_fc_target.size()[-1:]))
 
-		# print('shape1:', input_source.shape) # 128 5 2048
-		# print('shape2:', feat_base_source.shape) # 640 2048
-		# print('shape3:', feat_fc_source.shape) # 640 512
-		# print('shape4:', len(feat_all_source), len(feat_all_source[0]),len(feat_all_source[0][0]),len(feat_all_source[0][0][0]))# 1 128 5 512
+			#############=============== CORE PART =======  ############
 
-		#############=============== CORE PART =======  ############
-		basis = self.gen_basis(l = self.train_segments, gamma= self.gamma) # train_segments when target.
+		# basis = self.gen_basis(l = self.train_segments, gamma= self.gamma) # train_segments when target.
+		# print('basis:',basis.shape)
+		norm_loss = torch.zeros(1).cuda()
 
 		feat_fc_source = feat_fc_source.view(batch_source, self.train_segments, -1)
-		feat_fc_source2 = feat_fc_source.transpose(0, 1)
 
 
-		feat_fc_target = feat_fc_target.view(batch_target, self.val_segments, -1)
-		feat_fc_target2 = feat_fc_target.transpose(0, 1)
-		Q_t, (h, c) = self.Q_gen(feat_fc_target2)
-		Q_t = Q_t.transpose(0, 1)  # batch, original_size(target), target_size(source)
-		W_t = torch.matmul(Q_t,basis)
-		feat_fc_target3 = feat_fc_target.transpose(1, 2)
-		feat_fc_target = torch.matmul(feat_fc_target3, W_t).transpose(1, 2).contiguous()
+
+		if args.method == 'path_gen':
+			#path gen for source
+			feat_fc_source = feat_fc_source.view(batch_source, self.train_segments, -1)
+			feat_fc_source2 = feat_fc_source.transpose(0, 1)
+			W_s, (h, c) = self.path_gen(feat_fc_source2)
+			W_s = W_s.transpose(0, 1)  # batch, original_size(target), target_size(source)
+			feat_fc_source3 = feat_fc_source.transpose(1, 2)
+			feat_fc_source = torch.matmul(feat_fc_source3, W_s).transpose(1, 2).contiguous()
+
+			# path gen for target
+			feat_fc_target = feat_fc_target.view(batch_target, self.val_segments, -1)
+			feat_fc_target2 = feat_fc_target.transpose(0, 1)
+			W_t, (h, c) = self.path_gen(feat_fc_target2)
+			W_t = W_t.transpose(0, 1)  # batch, original_size(target), target_size(source)
+			feat_fc_target3 = feat_fc_target.transpose(1, 2)
+			feat_fc_target = torch.matmul(feat_fc_target3, W_t).transpose(1, 2).contiguous()
+		elif args.method == 'QB':
+
+			basis = self.basis.cuda()
+			# gen H by source
+			# basis = self.gen_H(feat_fc_source)
+			# np.save('H.npy', basis.detach().cpu().numpy())
+
+			# norm_loss  += torch.linalg.norm(Q_s)
+			# u,s_s,v = torch.svd(Q_s)
+			# norm_loss += torch.sum(s_s)
+			# q b for source
+			Q_s = self.gen_Q(feat_fc_source) # batch, original_size(target), target_size(source)
+			W_s = torch.matmul(Q_s, basis)
+			feat_fc_source3 = feat_fc_source.transpose(1, 2)
+			feat_fc_source = torch.matmul(feat_fc_source3, W_s).transpose(1, 2).contiguous()
+
+			# Q B for target
+			feat_fc_target = feat_fc_target.view(batch_target, self.val_segments, -1)
+			Q_t = self.gen_Q(feat_fc_target)# batch, original_size(target), target_size(source)
+			W_t = torch.matmul(Q_t,basis)
+			feat_fc_target3 = feat_fc_target.transpose(1, 2)
+			feat_fc_target = torch.matmul(feat_fc_target3, W_t).transpose(1, 2).contiguous()
 
 
+		# norm_loss += torch.linalg.norm(Q_t)
+		# u, s_t, v = torch.svd(Q_t)
+		# norm_loss += torch.sum(s_t)
+
+		# temporal attention
+		#[frame_len, batch, d]
+		# feat_fc_source += self.enc_pos_encoding2.cuda()
+		# feat_fc_source = self.transformer2.encoder(feat_fc_source.transpose(0,1)).transpose(0,1).contiguous()
+		# feat_fc_target += self.enc_pos_encoding2.cuda()
+		# feat_fc_target = self.transformer2.encoder(feat_fc_target.transpose(0,1)).transpose(0,1).contiguous()
 
 		# class pred - frame
 		feat_fc_source_temp = feat_fc_source.view(batch_source, -1)
@@ -971,35 +1110,37 @@ class VideoModel(nn.Module):
 		pred_fc_source = self.classifier_source(feat_fc_source_temp)
 		pred_fc_target = self.classifier_source(feat_fc_target_temp)
 
-		# domain pred by lstm - video
-		pred_fc_domain_video_source = self.domain_classifier_video(feat_fc_source)
-		pred_fc_domain_video_target = self.domain_classifier_video(feat_fc_target)
+		# class pred -lstm
+		pred_lstm_source = self.lstm_vid_classifier(feat_fc_source.view(batch_source, self.train_segments, -1).transpose(0, 1))
+		pred_lstm_target = self.lstm_vid_classifier(feat_fc_target.view(batch_target, self.val_segments, -1).transpose(0, 1))
+
+		# domain pred - video (by lstm)
+		if args.use_cdan:
+			s_cdan_loss_v = self.cdan(self.domain_classifier_video_pre(feat_fc_source), pred_lstm_source, 'source')
+			t_cdan_loss_v = self.cdan(self.domain_classifier_video_pre(feat_fc_target), pred_lstm_target, 'target')
+			# fill the blank
+			pred_fc_domain_video_source = torch.randn(batch_source, 2).cuda()
+			pred_fc_domain_video_target = torch.randn(batch_target, 2).cuda()
+		else:
+			pred_fc_domain_video_source = self.domain_classifier_video(feat_fc_source)
+			pred_fc_domain_video_target = self.domain_classifier_video(feat_fc_target)
 
 		# domain pred - frame -> frame for attention only
-		feat_fc_source = feat_fc_source.view(-1, input_source.size()[-1])
-		feat_fc_target = feat_fc_target.view(-1, input_target.size()[-1])
-		pred_fc_domain_frame_source = self.domain_classifier_frame(feat_fc_source, beta)
-		pred_fc_domain_frame_target = self.domain_classifier_frame(feat_fc_target, beta)
+		if args.use_cdan:
+			s_cdan_loss_f = self.cdan(feat_fc_source, pred_fc_source.expand(self.train_segments,batch_source,self.num_class).transpose(0,1).contiguous(), 'source')
+			t_cdan_loss_f = self.cdan(feat_fc_target, pred_fc_target.expand(self.val_segments,batch_target,self.num_class).transpose(0,1).contiguous(), 'target')
 
-		# attention
-		# feat_fc_source = self.get_attn_feat_frame(feat_fc_source, pred_fc_domain_frame_source)
-		# feat_fc_target = self.get_attn_feat_frame(feat_fc_target, pred_fc_domain_frame_target)
-
-
-		# class pred -lstm
-		pred_lstm_source = self.lstm_vid_classifier(feat_fc_source.view(batch_source,self.train_segments, -1).transpose(0, 1))
-		pred_lstm_target = self.lstm_vid_classifier(feat_fc_target.view(batch_target,self.val_segments, -1).transpose(0, 1))
-
-		# pred_lstm_source = self.lstm_vid_classifier(feat_fc_source2)
-		# pred_lstm_target = self.lstm_vid_classifier(feat_fc_target2)
+			cdan_loss = s_cdan_loss_v + t_cdan_loss_v + s_cdan_loss_f + t_cdan_loss_f
+			# fill the blank
+			pred_fc_domain_frame_source = torch.randn(batch_source* self.train_segments, 2).cuda()
+			pred_fc_domain_frame_target = torch.randn(batch_target* self.val_segments, 2).cuda()
+		else:
+			feat_fc_source = feat_fc_source.view(-1, input_source.size()[-1])
+			feat_fc_target = feat_fc_target.view(-1, input_target.size()[-1])
+			pred_fc_domain_frame_source = self.domain_classifier_frame(feat_fc_source, beta)
+			pred_fc_domain_frame_target = self.domain_classifier_frame(feat_fc_target, beta)
 
 
-
-
-
-
-
-		# pred = self.video_cls_fc(out[-1,:,:].)
 
 
 
@@ -1164,8 +1305,8 @@ class VideoModel(nn.Module):
 		#=== final output ===#
 		# pred_fc_video_source , pred_fc_video_target
 		# pred_lstm_source , pred_lstm_target
-		output_source = self.final_output(pred_fc_source, pred_fc_video_source, num_segments, batch_source) # select output from frame or video prediction
-		output_target = self.final_output(pred_fc_target, pred_fc_video_target, num_segments, batch_target)
+		output_source = self.final_output(pred_fc_source, pred_lstm_source, num_segments, batch_source) # select output from frame or video prediction
+		output_target = self.final_output(pred_fc_target, pred_lstm_target, num_segments, batch_target)
 
 
 
@@ -1178,4 +1319,4 @@ class VideoModel(nn.Module):
 			output_source_2 = self.final_output(pred_fc_source, pred_fc_video_source_2, num_segments, batch_source)
 			output_target_2 = self.final_output(pred_fc_target, pred_fc_video_target_2, num_segments, batch_target)
 
-		return attn_relation_source, output_source, output_source_2, pred_domain_all_source[::-1], feat_all_source[::-1], attn_relation_target, output_target, output_target_2, pred_domain_all_target[::-1], feat_all_target[::-1], feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, loss_feature, loss_sdtw # lreverse the order of feature ist due to some multi-gpu issues
+		return attn_relation_source, output_source, output_source_2, pred_domain_all_source[::-1], feat_all_source[::-1], attn_relation_target, output_target, output_target_2, pred_domain_all_target[::-1], feat_all_target[::-1], feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, cdan_loss, norm_loss # lreverse the order of feature ist due to some multi-gpu issues
