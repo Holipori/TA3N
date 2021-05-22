@@ -47,11 +47,11 @@ class GradScale(Function):
 		return grad_input, None
 
 class AdversarialNetwork(nn.Module):
-	def __init__(self, in_feature, hidden_size):
+	def __init__(self, in_feature, hidden_size, out_size = 2):
 		super(AdversarialNetwork, self).__init__()
 		self.ad_layer1 = nn.Linear(in_feature, hidden_size)
 		self.ad_layer2 = nn.Linear(hidden_size, hidden_size)
-		self.ad_layer3 = nn.Linear(hidden_size, 2)
+		self.ad_layer3 = nn.Linear(hidden_size, out_size)
 		self.relu1 = nn.ReLU()
 		self.relu2 = nn.ReLU()
 		self.dropout1 = nn.Dropout(0.5)
@@ -78,12 +78,12 @@ class AdversarialNetwork(nn.Module):
 		y = self.sigmoid(y)
 		return y
 
-class AdversarialNetwork_v(nn.Module):
-	def __init__(self, in_feature, hidden_size):
-		super(AdversarialNetwork_v, self).__init__()
+class AdversarialNetwork_n(nn.Module):
+	def __init__(self, in_feature, hidden_size, out_size):
+		super(AdversarialNetwork_n, self).__init__()
 		self.ad_layer1 = nn.Linear(in_feature, hidden_size)
 		self.ad_layer2 = nn.Linear(hidden_size, hidden_size)
-		self.ad_layer3 = nn.Linear(hidden_size, 2)
+		self.ad_layer3 = nn.Linear(hidden_size, out_size)
 		self.relu1 = nn.ReLU()
 		self.relu2 = nn.ReLU()
 		self.dropout1 = nn.Dropout(0.5)
@@ -99,9 +99,8 @@ class AdversarialNetwork_v(nn.Module):
 	def forward(self, feat, alpha=1):
 		# x = x * 1.0
 		# x = GradReverse.apply(feat, 1)
-		x = feat
 		# x.register_hook(grl_hook(alpha))
-		x = self.ad_layer1(x)
+		x = self.ad_layer1(feat)
 		x = self.relu1(x)
 		x = self.dropout1(x)
 		x = self.ad_layer2(x)
@@ -195,10 +194,10 @@ class VideoModel(nn.Module):
 		self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
 		# temporal attention
-		self.enc_pos_encoding2 = torch.autograd.Variable(torch.empty((args.num_segments, self.d_model)).cuda().uniform_(-0.1, 0.1),
-														requires_grad=True)
-		self.transformer2 = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
-										  num_encoder_layers=2, num_decoder_layers=0).cuda()
+		# self.enc_pos_encoding2 = torch.autograd.Variable(torch.empty((args.num_segments, self.d_model)).cuda().uniform_(-0.1, 0.1),
+		# 												requires_grad=True)
+		# self.transformer2 = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
+		# 								  num_encoder_layers=2, num_decoder_layers=0).cuda()
 
 
 		# feature size
@@ -214,7 +213,10 @@ class VideoModel(nn.Module):
 		self.video_cls_fc2 = nn.Linear(256, num_class)
 		# domain classifier
 		self.domain_cls = torch.nn.LSTM(self.feature_size, self.feature_size, 2 )
-		self.domain_cls_fc = nn.Linear(self.feature_size, 2)
+		if args.use_cdan:
+			self.domain_cls_fc = nn.Linear(self.feature_size * self.num_class, 1)
+		else:
+			self.domain_cls_fc = nn.Linear(self.feature_size, 2)
 		self.domain_cls_fc2 = nn.Linear(256, 2)
 
 		if args.method == 'path_gen':
@@ -277,11 +279,14 @@ class VideoModel(nn.Module):
 		# self.avg = torch.nn.Parameter(torch.rand(num_class,train_segments,self.output_size)) # class, frame, feature
 
 		# self.trm_bottleneck = self.output_size
+		# if args.use_cdan == True:
+		# 	self.netD = AdversarialNetwork2(2048* self.num_class, 1024).cuda()
+		# else:
 		if args.use_cdan == True:
-			self.netD = AdversarialNetwork2(2048* self.num_class, 1024).cuda()
+			self.netD = AdversarialNetwork(2048* self.num_class, 1024, 1).cuda()
+			self.netD2 = AdversarialNetwork(2048* self.num_class, 1024, 1).cuda()
 		else:
 			self.netD = AdversarialNetwork(2048, 1024).cuda()
-		self.netD2 = AdversarialNetwork_v(2048, 1024).cuda()
 		# fc test
 		# self.fc_layer = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
 		# self.fc_layer2 = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
@@ -721,10 +726,9 @@ class VideoModel(nn.Module):
 		out = out.transpose(0, 1)[:, -1, :]
 		return out
 	def domain_classifier_video(self, feat_video, beta = 1):
-		feat_video = GradReverse.apply(feat_video, 1)
 		out = self.domain_classifier_video_pre(feat_video)
-		# pred_fc_domain_video = self.domain_cls_fc(out)
-		pred_fc_domain_video = self.netD2(out)
+		pred_fc_domain_video = self.domain_cls_fc(out)
+		# pred_fc_domain_video = self.netD2(out)
 		# print('shape:',pred_fc_domain_video.shape)
 
 		# feat_fc_domain_video = self.fc_feature_domain_video(feat_fc_domain_video)
@@ -916,7 +920,7 @@ class VideoModel(nn.Module):
 
 		return out
 
-	def cdan(self, feat, pred, domain):
+	def cdan_frame(self, feat, pred, domain = 'source'):
 		'''
 		feat: [batch * sequence_len, d] for frame
 			  [batch , d] for video
@@ -941,26 +945,75 @@ class VideoModel(nn.Module):
 		# entropy.register_hook(grl_hook(alpha))
 		entropy = 1.0 + torch.exp(-entropy)
 
-		# source_mask = torch.ones_like(entropy)
-		# source_mask[features.size(0) // 2:] = 0
-		# source_weight = entropy * source_mask
-		# target_mask = torch.ones_like(entropy)
-		# target_mask[0:features.size(0) // 2] = 0
-		# target_weight = entropy * target_mask
-		weight = entropy/ torch.sum(entropy).detach().item()
-		# weight = source_weight / torch.sum(source_weight).detach().item() + \
-		# 		 target_weight / torch.sum(target_weight).detach().item()
-		if domain == 'source':
-			dc_labels = torch.from_numpy(np.array([[1]] * features.size(0))).float().cuda()
-		elif domain == 'target':
-			dc_labels = torch.from_numpy(np.array([[0]] * features.size(0))).float().cuda()
+		source_mask = torch.ones_like(entropy)
+		source_mask[features.size(0) // 2:] = 0
+		source_weight = entropy * source_mask
+		target_mask = torch.ones_like(entropy)
+		target_mask[0:features.size(0) // 2] = 0
+		target_weight = entropy * target_mask
+		# weight = entropy/ torch.sum(entropy).detach().item()
+		weight = source_weight / torch.sum(source_weight).detach().item() + \
+				 target_weight / torch.sum(target_weight).detach().item()
+
+		dc_labels = torch.from_numpy(np.array([[1]] * self.batch_source * self.train_segments + [[0]] * self.batch_target * self.val_segments)).float().cuda()
+		# if domain == 'source':
+		# 	dc_labels = torch.from_numpy(np.array([[1]] * features.size(0))).float().cuda()
+		# elif domain == 'target':
+		# 	dc_labels = torch.from_numpy(np.array([[0]] * features.size(0))).float().cuda()
 		G_loss = torch.sum(weight.view(-1, 1) * nn.BCELoss(reduction='none')(self.netD(features), dc_labels)) / torch.sum(weight).detach().item()
+		return G_loss
+
+	def cdan_video(self, feat, pred, domain= 'source'):
+		'''
+		feat: [batch * sequence_len, d] for frame
+			  [batch , d] for video
+		pred: [batch * sequence_len, num_class] for frame
+			  [batch , num_class] for video
+		'''
+		features = feat.view(-1, self.output_size)
+		pred = pred.view(-1, self.num_class)
+		# return
+		softmax_output = F.softmax(pred, dim=1)
+
+		#
+		# target_softmax_output = F.softmax(pred, dim=1)  # .detach()
+		# features = torch.cat([source_features, target_features], dim=0)
+		# softmax_output = torch.cat([source_softmax_output, target_softmax_output], dim=0)
+		#
+		op_out = torch.bmm(softmax_output.unsqueeze(2), features.unsqueeze(1))
+		print(features.shape)
+		features = op_out.view(-1, softmax_output.size(1) * features.size(1))
+
+		entropy = Entropy(softmax_output)
+		entropy = GradReverse.apply(entropy, 1)
+		# entropy.register_hook(grl_hook(alpha))
+		entropy = 1.0 + torch.exp(-entropy)
+
+		source_mask = torch.ones_like(entropy)
+		source_mask[features.size(0) // 2:] = 0
+		source_weight = entropy * source_mask
+		target_mask = torch.ones_like(entropy)
+		target_mask[0:features.size(0) // 2] = 0
+		target_weight = entropy * target_mask
+		# weight = entropy/ torch.sum(entropy).detach().item()
+		weight = source_weight / torch.sum(source_weight).detach().item() + \
+				 target_weight / torch.sum(target_weight).detach().item()
+
+		dc_labels = torch.from_numpy(np.array([[1]] * self.batch_source + [[0]] * self.batch_target)).float().cuda()
+		# if domain == 'source':
+		# 	dc_labels = torch.from_numpy(np.array([[1]] * features.size(0))).float().cuda()
+		# elif domain == 'target':
+		# 	dc_labels = torch.from_numpy(np.array([[0]] * features.size(0))).float().cuda()
+		print(features.shape, dc_labels.shape)
+		G_loss = torch.sum(weight.view(-1, 1) * nn.BCELoss(reduction='none')(self.netD2(features), dc_labels)) / torch.sum(weight).detach().item()
 		return G_loss
 
 	def forward(self, input_source, source_label, input_target, beta, mu, is_train, reverse, batchsize = 0, dummy = False):
 
 		batch_source = input_source.size()[0]
 		batch_target = input_target.size()[0]
+		self.batch_source = batch_source
+		self.batch_target = batch_target
 		########################===================== attention =======
 		if args.use_attention:
 			# [b, l, 7,7,2048] -> [ b, l, 49, 2048]
@@ -1116,8 +1169,9 @@ class VideoModel(nn.Module):
 
 		# domain pred - video (by lstm)
 		if args.use_cdan:
-			s_cdan_loss_v = self.cdan(self.domain_classifier_video_pre(feat_fc_source), pred_lstm_source, 'source')
-			t_cdan_loss_v = self.cdan(self.domain_classifier_video_pre(feat_fc_target), pred_lstm_target, 'target')
+			# s_cdan_loss_v = self.cdan_video(self.domain_classifier_video_pre(feat_fc_source), pred_lstm_source, 'source')
+			# t_cdan_loss_v = self.cdan_video(self.domain_classifier_video_pre(feat_fc_target), pred_lstm_target, 'target')
+			cdan_loss_v = self.cdan_video(torch.cat([self.domain_classifier_video_pre(feat_fc_source), self.domain_classifier_video_pre(feat_fc_target)]), torch.cat([pred_lstm_source, pred_lstm_target]))
 			# fill the blank
 			pred_fc_domain_video_source = torch.randn(batch_source, 2).cuda()
 			pred_fc_domain_video_target = torch.randn(batch_target, 2).cuda()
@@ -1127,10 +1181,11 @@ class VideoModel(nn.Module):
 
 		# domain pred - frame -> frame for attention only
 		if args.use_cdan:
-			s_cdan_loss_f = self.cdan(feat_fc_source, pred_fc_source.expand(self.train_segments,batch_source,self.num_class).transpose(0,1).contiguous(), 'source')
-			t_cdan_loss_f = self.cdan(feat_fc_target, pred_fc_target.expand(self.val_segments,batch_target,self.num_class).transpose(0,1).contiguous(), 'target')
-
-			cdan_loss = s_cdan_loss_v + t_cdan_loss_v + s_cdan_loss_f + t_cdan_loss_f
+			# s_cdan_loss_f = self.cdan_frame(feat_fc_source, pred_fc_source.expand(self.train_segments,batch_source,self.num_class).transpose(0,1).contiguous(), 'source')
+			# t_cdan_loss_f = self.cdan_frame(feat_fc_target, pred_fc_target.expand(self.val_segments,batch_target,self.num_class).transpose(0,1).contiguous(), 'target')
+			labels = torch.cat([pred_fc_source.expand(self.train_segments,batch_source,self.num_class).transpose(0,1).contiguous(), pred_fc_target.expand(self.val_segments,batch_target,self.num_class).transpose(0,1).contiguous()])
+			cdan_loss_f = self.cdan_frame(torch.cat([feat_fc_source, feat_fc_target]), labels)
+			cdan_loss = cdan_loss_v+ cdan_loss_f
 			# fill the blank
 			pred_fc_domain_frame_source = torch.randn(batch_source* self.train_segments, 2).cuda()
 			pred_fc_domain_frame_target = torch.randn(batch_target* self.val_segments, 2).cuda()

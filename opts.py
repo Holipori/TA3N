@@ -130,6 +130,8 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
+# parser.add_argument('--resume', default='exp-tempRGB/temp/2021-05-21 16:29:49/checkpoint.pth.tar', type=str, metavar='PATH',
+#                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--resume_hp', default=False, action="store_true",
                     help='whether to use the saved hyper-parameters')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',

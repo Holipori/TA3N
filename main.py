@@ -101,7 +101,7 @@ def main():
 	num_class = len(class_names)
 
 	#=== check the folder existence ===#
-	path_exp = args.exp_path + args.modality + '/'
+	path_exp = args.exp_path + args.modality + '/' + 'temp/' + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) +'/'
 	if not os.path.isdir(path_exp):
 		os.makedirs(path_exp)
 
@@ -142,7 +142,7 @@ def main():
 		if os.path.isfile(args.resume):
 			checkpoint = torch.load(args.resume)
 			start_epoch = checkpoint['epoch'] + 1
-			start_epoch = 50
+			# start_epoch = 50
 			best_prec1 = checkpoint['best_prec1']
 			model.load_state_dict(checkpoint['state_dict'])
 			print(("=> loaded checkpoint '{}' (epoch {})"
@@ -318,6 +318,7 @@ def main():
 			is_best = prec1 > best_prec1
 			line_update = ' ==> updating the best accuracy' if is_best else ''
 			line_best = "Best score {} vs current score {}".format(best_prec1, prec1) + line_update
+			val_file.write('%s\n' % line_best)
 			print(Fore.YELLOW + line_best)
 			val_short_file.write('%.3f\n' % prec1)
 
@@ -862,7 +863,6 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 
 	print(('Testing Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
 		  .format(top1=top1, top5=top5, loss=losses)))
-
 	return top1.avg
 
 

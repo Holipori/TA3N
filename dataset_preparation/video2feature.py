@@ -23,11 +23,12 @@ init(autoreset=True)
 ###### Flags ######
 parser = argparse.ArgumentParser(description='Dataset Preparation')
 # parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/hmdb51/', help='source path')
-parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/ucf101/', help='source path')
+# parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/ucf101/', help='source path')
+parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/olympics/', help='source path')
 parser.add_argument('--video_in', type=str, required=False, default='RGB', help='name of input video dataset')
 parser.add_argument('--feature_in', type=str, required=False, default='RGB-feature',
                     help='name of output frame dataset')
-parser.add_argument('--input_type', type=str, default='video', choices=['video', 'frames'],
+parser.add_argument('--input_type', type=str, default='frames', choices=['video', 'frames'],
                     help='input types for videos')
 parser.add_argument('--structure', type=str, default='tsn', choices=['tsn', 'imagenet'],
                     help='data structure of output frames')
@@ -39,7 +40,8 @@ parser.add_argument('--batch_size', type=int, required=False, default=128, help=
 parser.add_argument('--start_class', type=int, required=False, default=1, help='the starting class id (start from 1)')
 parser.add_argument('--end_class', type=int, required=False, default=-1, help='the end class id')
 # parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/hmdb51_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
-parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/ucf101_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
+# parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/ucf101_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
+parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/olympic_splits/class_list_ucf_olympic.txt', help='process the classes only in the class_file')
 
 args = parser.parse_args()
 
