@@ -194,10 +194,10 @@ class VideoModel(nn.Module):
 		self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
 		# temporal attention
-		# self.enc_pos_encoding2 = torch.autograd.Variable(torch.empty((args.num_segments, self.d_model)).cuda().uniform_(-0.1, 0.1),
-		# 												requires_grad=True)
-		# self.transformer2 = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
-		# 								  num_encoder_layers=2, num_decoder_layers=0).cuda()
+		self.enc_pos_encoding2 = torch.autograd.Variable(torch.empty((args.num_segments, self.d_model)).cuda().uniform_(-0.1, 0.1),
+														requires_grad=True)
+		self.transformer2 = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
+										  num_encoder_layers=2, num_decoder_layers=0).cuda()
 
 
 		# feature size
@@ -1151,11 +1151,12 @@ class VideoModel(nn.Module):
 		# norm_loss += torch.sum(s_t)
 
 		# temporal attention
-		#[frame_len, batch, d]
-		# feat_fc_source += self.enc_pos_encoding2.cuda()
-		# feat_fc_source = self.transformer2.encoder(feat_fc_source.transpose(0,1)).transpose(0,1).contiguous()
-		# feat_fc_target += self.enc_pos_encoding2.cuda()
-		# feat_fc_target = self.transformer2.encoder(feat_fc_target.transpose(0,1)).transpose(0,1).contiguous()
+		if args.use_temporal_attention:
+			#[frame_len, batch, d]
+			feat_fc_source += self.enc_pos_encoding2.cuda()
+			feat_fc_source = self.transformer2.encoder(feat_fc_source.transpose(0,1)).transpose(0,1).contiguous()
+			feat_fc_target += self.enc_pos_encoding2.cuda()
+			feat_fc_target = self.transformer2.encoder(feat_fc_target.transpose(0,1)).transpose(0,1).contiguous()
 
 		# class pred - frame
 		feat_fc_source_temp = feat_fc_source.view(batch_source, -1)

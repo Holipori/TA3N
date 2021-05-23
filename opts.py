@@ -29,6 +29,7 @@ parser.add_argument('--use_attention', default= True, type= bool)
 parser.add_argument('--share_mapping', default=True, type = bool)
 parser.add_argument('--method', default= 'path_gen', type= str)
 parser.add_argument('--use_cdan', default= False, type = bool)
+parser.add_argument('--use_temporal_attention', default= False, type = bool)
 # ========================= Model Configs ==========================
 # parser.add_argument('--add_fc', default=0, type=int, metavar='M',
 #                     help='number of additional fc layers (excluding the last fc layer) (e.g. 0, 1, 2, ...)')
@@ -98,7 +99,7 @@ parser.add_argument('--place_adv', default=['N', 'Y', 'Y'], type=str, nargs="+",
 parser.add_argument('--pretrain_source', default=False, action="store_true", help='perform source-only training before DA')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
-parser.add_argument('-b', '--batch_size', default=[16,16,16], type=int, nargs="+", # 128 74 128 #64,74,128
+parser.add_argument('-b', '--batch_size', default=[10,10,10], type=int, nargs="+", # 128 74 128 #64,74,128
                     metavar='N', help='mini-batch size ([source, target, testing])')
 parser.add_argument('--lr', '--learning_rate', default=0.01, type=float, # 3e-2
                     metavar='LR', help='initial learning rate')
