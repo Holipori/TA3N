@@ -121,7 +121,6 @@ def main():
 				verbose=args.verbose, share_params=args.share_params, if_trm = args.if_trm, trm_bottleneck=args.trm_bottleneck)
 
 	model = torch.nn.DataParallel(model, args.gpus).cuda()
-	# model = model.cuda()
 
 	# model = model.cuda()
 
@@ -422,7 +421,7 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		batch_source_ori = source_size_ori[0]
 		batch_target_ori = target_size_ori[0]
 		# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
-		if args.use_mydata:
+		if args.use_mydata or args.use_i3d:
 			if batch_source_ori < args.batch_size[0]:
 				dummy = True
 				source_data_dummy = torch.zeros(args.batch_size[0] - batch_source_ori, source_size_ori[1],
@@ -627,8 +626,8 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 		feat2 = feat_base_source.detach().cpu().numpy()
 		# feat3 = source_means.detach().cpu().numpy()
 		# print(feat_base_source.size())
-		np.save('feat1.npy',feat1)
-		np.save('feat2.npy',feat2)
+		# np.save('feat1.npy',feat1)
+		# np.save('feat2.npy',feat2)
 		# np.save('feat3.npy',feat3)
 
 		plt.imshow(feat1)
@@ -790,7 +789,10 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 			# add dummy tensors to keep the same batch size for each epoch (for the last epoch)
 			if batch_val_ori < args.batch_size[2]:
 				dummy = True
-				val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
+				if args.use_mydata or args.use_i3d:
+					val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2],val_size_ori[3],val_size_ori[4])
+				else:
+					val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
 				val_data = torch.cat((val_data, val_data_dummy))
 			if val_label.size()[0] < args.batch_size[2]:
 				val_label_dummy = torch.ones(args.batch_size[2] - batch_val_ori).long()*12 # total class number

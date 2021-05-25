@@ -10,3 +10,5 @@
 9 shoot_ball 
 10 shoot_bow
 11 walk
+
+scp ~/dataset/hmdb51/RGB/walk/* xinyue@plano.uta.edu:~/dataset/hmdb51/RGB/walk/

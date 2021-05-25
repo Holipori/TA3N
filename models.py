@@ -185,8 +185,11 @@ class VideoModel(nn.Module):
 
 
 		# transformer, attention
-		self.d_model = 2048
-		# self.fc_tr = nn.Linear(2048, self.d_model).cuda()
+		if args.use_i3d:
+			self.d_model = 1024
+		else:
+			self.d_model = 2048
+		# self.fc_tr = nn.Linear(self.d_model, self.d_model).cuda()
 		self.enc_pos_encoding = torch.autograd.Variable(torch.empty((49, self.d_model)).cuda().uniform_(-0.1, 0.1),
 														requires_grad=True)
 		self.transformer = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
@@ -201,10 +204,10 @@ class VideoModel(nn.Module):
 
 
 		# feature size
-		self.feature_size = 2048
+		self.feature_size = self.d_model
 		# gtw
 		self.basis_num = 6
-		self.hidden_size2 = 2048
+		self.hidden_size2 = self.d_model
 		self.layer_num = 2
 
 		# video classifier
@@ -253,7 +256,7 @@ class VideoModel(nn.Module):
 		self.hidden_size = 256
 		self.output_size = self.feature_size
 		self.group_number = 100
-		# self.lstm = torch.nn.LSTM(2048,self.hidden_size) #input output
+		# self.lstm = torch.nn.LSTM(self.d_model,self.hidden_size) #input output
 		# self.fc_mu = nn.Linear(self.hidden_size, self.output_size*self.group_number)
 		# normal_(self.fc_mu.weight, 0, 1)
 		# constant_(self.fc_mu.bias, 0)
@@ -280,13 +283,14 @@ class VideoModel(nn.Module):
 
 		# self.trm_bottleneck = self.output_size
 		# if args.use_cdan == True:
-		# 	self.netD = AdversarialNetwork2(2048* self.num_class, 1024).cuda()
+		# 	self.netD = AdversarialNetwork2(self.d_model* self.num_class, 1024).cuda()
 		# else:
 		if args.use_cdan == True:
-			self.netD = AdversarialNetwork(2048* self.num_class, 1024, 1).cuda()
-			self.netD2 = AdversarialNetwork(2048* self.num_class, 1024, 1).cuda()
+			self.netD = AdversarialNetwork(self.d_model* self.num_class, 1024, 1).cuda()
+			self.netD2 = AdversarialNetwork(self.d_model* self.num_class, 1024, 1).cuda()
 		else:
-			self.netD = AdversarialNetwork(2048, 1024).cuda()
+			self.netD = AdversarialNetwork(self.d_model, 1024).cuda()
+		# self.netD2 = AdversarialNetwork(self.d_model, 1024, 2).cuda()
 		# fc test
 		# self.fc_layer = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
 		# self.fc_layer2 = fc_l(256,int(10240 * ((1/4)*add_fc + (1-add_fc))))
@@ -339,7 +343,7 @@ class VideoModel(nn.Module):
 		# else:
 		# 	model_test = getattr(torchvision.models, base_model)(True) # model_test is only used for getting the dim #
 		# 	self.feature_dim = model_test.fc.in_features
-		self.feature_dim = 2048
+		self.feature_dim = self.d_model
 
 		std = 0.001
 		feat_shared_dim = min(self.fc_dim, self.feature_dim) if self.add_fc > 0 and self.fc_dim > 0 else self.feature_dim
@@ -357,7 +361,7 @@ class VideoModel(nn.Module):
 		# 	raise ValueError(Back.RED + 'add at least one fc layer')
 
 		# 1. shared feature layers
-		# self.fc_feature_shared_source = nn.Linear(self.feature_dim, 2048)
+		# self.fc_feature_shared_source = nn.Linear(self.feature_dim, self.d_model)
 
 		self.fc_feature_shared_source = nn.Sequential(
 			nn.Linear(self.feature_dim, self.output_size),
@@ -393,7 +397,7 @@ class VideoModel(nn.Module):
 		normal_(self.fc_classifier_source.weight, 0, std)
 		constant_(self.fc_classifier_source.bias, 0)
 
-		# self.fc_classifier_source2 = nn.Linear(2048, num_class)
+		# self.fc_classifier_source2 = nn.Linear(self.d_model, num_class)
 		# normal_(self.fc_classifier_source.weight, 0, std)
 		# constant_(self.fc_classifier_source.bias, 0)
 
@@ -1009,17 +1013,17 @@ class VideoModel(nn.Module):
 		return G_loss
 
 	def forward(self, input_source, source_label, input_target, beta, mu, is_train, reverse, batchsize = 0, dummy = False):
-
+		print(input_source.shape)
 		batch_source = input_source.size()[0]
 		batch_target = input_target.size()[0]
 		self.batch_source = batch_source
 		self.batch_target = batch_target
 		########################===================== attention =======
 		if args.use_attention:
-			# [b, l, 7,7,2048] -> [ b, l, 49, 2048]
-			# [b, l, 2048, 7, 7] -> [ b, l,  2048, 49] this ->[ b, l, 49, 2048]
-			input_source = input_source.view(batch_source, input_source.shape[1], 2048, 49).transpose(-1,-2)
-			input_target = input_target.view(batch_target, input_target.shape[1], 2048, 49).transpose(-1,-2)
+			# [b, l, 7,7,self.d_model] -> [ b, l, 49, self.d_model]
+			# [b, l, self.d_model, 7, 7] -> [ b, l,  self.d_model, 49] this ->[ b, l, 49, self.d_model]
+			input_source = input_source.view(batch_source, input_source.shape[1], self.d_model, 49).transpose(-1,-2)
+			input_target = input_target.view(batch_target, input_target.shape[1], self.d_model, 49).transpose(-1,-2)
 
 			# input_source = self.fc_tr(input_source)
 			# input_target = self.fc_tr(input_target)
@@ -1066,14 +1070,14 @@ class VideoModel(nn.Module):
 
 		# input_data is a list of tensors --> need to do pre-processing
 
-		feat_base_source0 = input_source.view(-1, input_source.size()[-1]) # e.g. 256 x 25 x 2048 --> 6400 x 2048
-		feat_base_target0 = input_target.view(-1, input_target.size()[-1])  # e.g. 256 x 25 x 2048 --> 6400 x 2048
+		feat_base_source0 = input_source.view(-1, input_source.size()[-1]) # e.g. 256 x 25 x self.d_model --> 6400 x self.d_model
+		feat_base_target0 = input_target.view(-1, input_target.size()[-1])  # e.g. 256 x 25 x self.d_model --> 6400 x self.d_model
 		if flag:
-			feat_base_source = self.feature_gmm_source.view(-1, self.feature_gmm_source.size()[-1]) # e.g. 256 x 25 x 2048 --> 6400 x 2048
-			feat_base_target = self.feature_gmm_target.view(-1, self.feature_gmm_target.size()[-1])  # e.g. 256 x 25 x 2048 --> 6400 x 2048
+			feat_base_source = self.feature_gmm_source.view(-1, self.feature_gmm_source.size()[-1]) # e.g. 256 x 25 x self.d_model --> 6400 x self.d_model
+			feat_base_target = self.feature_gmm_target.view(-1, self.feature_gmm_target.size()[-1])  # e.g. 256 x 25 x self.d_model --> 6400 x self.d_model
 		else:
-			feat_base_source = input_source.view(-1, input_source.size()[-1])  # e.g. 256 x 25 x 2048 --> 6400 x 2048
-			feat_base_target = input_target.view(-1, input_target.size()[-1])  # e.g. 256 x 25 x 2048 --> 6400 x 2048
+			feat_base_source = input_source.view(-1, input_source.size()[-1])  # e.g. 256 x 25 x self.d_model --> 6400 x self.d_model
+			feat_base_target = input_target.view(-1, input_target.size()[-1])  # e.g. 256 x 25 x self.d_model --> 6400 x self.d_model
 
 
 		#=== shared layers ===#
@@ -1111,7 +1115,8 @@ class VideoModel(nn.Module):
 			feat_fc_source = feat_fc_source.view(batch_source, self.train_segments, -1)
 			feat_fc_source2 = feat_fc_source.transpose(0, 1)
 			W_s, (h, c) = self.path_gen(feat_fc_source2)
-			W_s = W_s.transpose(0, 1)  # batch, original_size(target), target_size(source)
+			np.save('W.npy', np.array(W_s.detach().cpu()))
+			W_s = W_s.transpose(0, 1)  # batch, original_size(source), target_size(latent)
 			feat_fc_source3 = feat_fc_source.transpose(1, 2)
 			feat_fc_source = torch.matmul(feat_fc_source3, W_s).transpose(1, 2).contiguous()
 
@@ -1119,7 +1124,7 @@ class VideoModel(nn.Module):
 			feat_fc_target = feat_fc_target.view(batch_target, self.val_segments, -1)
 			feat_fc_target2 = feat_fc_target.transpose(0, 1)
 			W_t, (h, c) = self.path_gen(feat_fc_target2)
-			W_t = W_t.transpose(0, 1)  # batch, original_size(target), target_size(source)
+			W_t = W_t.transpose(0, 1)  # batch, original_size(target), target_size(latent)
 			feat_fc_target3 = feat_fc_target.transpose(1, 2)
 			feat_fc_target = torch.matmul(feat_fc_target3, W_t).transpose(1, 2).contiguous()
 		elif args.method == 'QB':
@@ -1210,7 +1215,7 @@ class VideoModel(nn.Module):
 		# 	feat_temp_source = feat_fc_source.view(batch_source, num_segments, -1)
 		# 	feat_temp_target = feat_fc_source.view(batch_target, num_segments, -1)
 		#
-		# 	loss_sdtw = self.sdtw(feat_temp_source, feat_temp_target) / 2048
+		# 	loss_sdtw = self.sdtw(feat_temp_source, feat_temp_target) / self.d_model
 		# 	loss_sdtw = loss_sdtw.sum()
 		#
 		#
@@ -1229,7 +1234,7 @@ class VideoModel(nn.Module):
 		# 	feat_temp_source = feat_temp_source.view(l, num_segments, -1)
 		# 	feat_temp_target = feat_fc_target[:l * num_segments].view(l, num_segments, -1)
 		#
-		# 	loss_sdtw = self.sdtw(feat_temp_source, feat_temp_target) / 2048
+		# 	loss_sdtw = self.sdtw(feat_temp_source, feat_temp_target) / self.d_model
 		# 	loss_sdtw = loss_sdtw.sum()
 		#
 		# # print('sdtw:',loss_sdtw)

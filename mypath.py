@@ -6,14 +6,14 @@ class Path(object):
             root_dir = '/home/xinyue/dataset/ucf101/RGB'
 
             # Save preprocess data into output_dir
-            output_dir = '/home/xinyue/dataset/ucf101/out2'
+            output_dir = '/home/xinyue/dataset/ucf101/out'
 
             return root_dir, output_dir
         elif database == 'hmdb51':
             # folder that contains class labels
             root_dir = '/home/xinyue/dataset/hmdb51/RGB'
 
-            output_dir = '/home/xinyue/dataset/hmdb51/out2'
+            output_dir = '/home/xinyue/dataset/hmdb51/out'
 
             return root_dir, output_dir
         else:

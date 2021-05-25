@@ -57,13 +57,13 @@ class TSNDataSet(data.Dataset):
                 feat = [torch.load(feat_path)]
             except:
                 print(Back.RED + feat_path)
-            if feat[0].shape[-1] == 100352:
-                # print(feat[0].shape)
-                pass
-            else:
-                print(
-                    'nono'
-                )
+            # if feat[0].shape[-1] == 100352:
+            #     # print(feat[0].shape)
+            #     pass
+            # else:
+            #     print(
+            #         'nono'
+            #     )
                 # raise AssertionError
             return feat
 
@@ -120,16 +120,31 @@ class TSNDataSet(data.Dataset):
         num_min = self.num_segments + self.new_length - 1
         num_select = record.num_frames - self.new_length + 1
 
+        #original
+        # if record.num_frames >= num_min:
+        #     tick = float(num_select) / float(self.num_segments)
+        #     offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)]) # pick the central frame in each segment
+        # else: # the video clip is too short --> duplicate the last frame
+        #     id_select = np.array([x for x in range(num_select)])
+        #     # expand to the length of self.num_segments with the last element
+        #     id_expand = np.ones(self.num_segments-num_select,dtype=int)*id_select[id_select[0]-1]
+        #     offsets = np.append(id_select, id_expand)
+
+        # # first n frames
         if record.num_frames >= num_min:
-            tick = float(num_select) / float(self.num_segments)
-            offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)]) # pick the central frame in each segment
-        else: # the video clip is too short --> duplicate the last frame
+            offsets = np.array(list(range(self.num_segments)))
+        else:
             id_select = np.array([x for x in range(num_select)])
             # expand to the length of self.num_segments with the last element
-            id_expand = np.ones(self.num_segments-num_select,dtype=int)*id_select[id_select[0]-1]
-            offsets = np.append(id_select, id_expand)
+            offsets = id_select.copy()
+            while 1:
+                if len(id_select)+ len(offsets)< num_min:
+                    offsets = np.append(offsets,id_select)
+                else:
+                    offsets = np.append(offsets, id_select[:self.num_segments - len(offsets)])
+                    break
 
-
+        # # interval 2
         # if record.num_frames >= num_min*2:
         #     offsets = np.array(list(range(0, self.num_segments*2,2)))
         # else: # the video clip is too short --> duplicate the last frame

@@ -122,7 +122,9 @@ else:
 
 ################### Main Function ###################
 def im2tensor(im):
+	print(im.shape)
 	im = Image.fromarray(im) # convert numpy array to PIL image
+	print(im.size())
 	t_im = data_transform(im) # Create a PyTorch Variable with the transformed image
 	return t_im
 

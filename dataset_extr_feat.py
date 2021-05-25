@@ -57,7 +57,7 @@ class VideoDataset(Dataset):
 
         # Prepare a mapping between the label names (strings) and indices (ints)
         if dataset == "ucf101":
-            with open('dataloaders/ucf_labels.txt', 'r') as f:
+            with open('/home/xinyue/TA3N/dataloaders/ucf_labels.txt', 'r') as f:
                 for line in f.readlines():
                     temp = line.split()
                     self.label2index[temp[1]] = int(temp[0])
@@ -65,7 +65,7 @@ class VideoDataset(Dataset):
             self.label_array = np.array([self.label2index[label] for label in labels], dtype=int)
 
         elif dataset == 'hmdb51':
-            with open('dataloaders/hmdb_labels.txt', 'r') as f:
+            with open('/home/xinyue/TA3N/dataloaders/hmdb_labels.txt', 'r') as f:
                 for line in f.readlines():
                     temp = line.split()
                     self.label2index[temp[1]] = int(temp[0])
