@@ -1,6 +1,17 @@
 import argparse
 import deepspeed
-
+# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
+# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
+# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
+# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
+# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
+# parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
+# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
+# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt" ,type=str)
+# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
+# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/list_kinetics_train_gameplay_kinetics-feature.txt", type=str)
+# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/list_gameplay_train_gameplay_kinetics-feature.txt" ,type=str)
+# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/list_gameplay_val_gameplay_kinetics-feature.txt', type=str)
 def argument(parser, source, target, full, use_i3d):
     parser.add_argument('--source', type=str, default=source)
     parser.add_argument('--target', type=str, default=target)
@@ -40,20 +51,6 @@ use_i3d = True
 
 parser = argument(parser, source, target, full, use_i3d)
 
-
-
-# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
-# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
-# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
-# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
-# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
-# parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
-# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
-# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt" ,type=str)
-# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
-# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/list_kinetics_train_gameplay_kinetics-feature.txt", type=str)
-# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/list_gameplay_train_gameplay_kinetics-feature.txt" ,type=str)
-# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/list_gameplay_val_gameplay_kinetics-feature.txt', type=str)
 parser.add_argument('--if_trm', default= True, type = bool, help= 'if replace temporal relation module with fc layer')
 parser.add_argument('--trm_bottleneck', default= 256, type = int, help=' original 256')
 parser.add_argument('--use_mydata', default= False, type= bool)
@@ -61,7 +58,7 @@ parser.add_argument('--use_mydata', default= False, type= bool)
 parser.add_argument('--use_attention', default= True, type= bool)
 parser.add_argument('--share_mapping', default=True, type = bool)
 parser.add_argument('--method', default= 'path_gen', type= str)
-parser.add_argument('--use_cdan', default= False, type = bool)
+parser.add_argument('--use_cdan', default= True, type = bool)
 parser.add_argument('--use_temporal_attention', default= False, type = bool)
 # ========================= Model Configs ==========================
 # parser.add_argument('--add_fc', default=0, type=int, metavar='M',

@@ -6,6 +6,8 @@ import time
 
 DATA_DIR = '/home/xinyue/dataset/hmdb51/RGB'
 SAVE_DIR = '/home/xinyue/dataset/hmdb51/flow'
+if not os.path.exists(SAVE_DIR):
+    os.makedirs(SAVE_DIR)
 
 _EXT = ['.avi', '.mp4']
 _IMAGE_SIZE = 224
@@ -48,6 +50,7 @@ def compute_rgb(video_path):
 
 def compute_TVL1(video_path):
   """Compute the TV-L1 optical flow."""
+  print(video_path)
   flow = []
   TVL1 = cv2.DualTVL1OpticalFlow_create()
   vidcap = cv2.VideoCapture(video_path)
@@ -55,9 +58,13 @@ def compute_TVL1(video_path):
   bins = np.linspace(-20, 20, num=256)
   prev = cv2.cvtColor(frame1,cv2.COLOR_RGB2GRAY)
   vid_len = get_video_length(video_path)
-  for _ in range(0,vid_len-1):
+  for _ in range(0,vid_len-2):
       success, frame2 = vidcap.read()
-      curr = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY) 
+      try:
+        curr = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
+      except:
+        print('no')
+        break
       curr_flow = TVL1.calc(prev, curr, None)
       assert(curr_flow.dtype == np.float32)
       
@@ -68,15 +75,20 @@ def compute_TVL1(video_path):
       #digitize and scale to [-1;1]
       curr_flow = np.digitize(curr_flow, bins)
       curr_flow = (curr_flow/255.)*2 - 1
-    
+
+      new_width = int(curr_flow.shape[1]/curr_flow.shape[0] * 224)
+      curr_flow = cv2.resize(curr_flow, (new_width, 224))
       #cropping the center
-      curr_flow = curr_flow[8:232, 48:272]  
+      # curr_flow = curr_flow[8:232, 48:272]
+      curr_flow = curr_flow[:, 37:261]
       flow.append(curr_flow)
       prev = curr
   vidcap.release()
   flow = np.asarray([np.array(flow)])
   print('Save flow with shape ', flow.shape)
-  np.save(SAVE_DIR+'/flow.npy', flow)
+  name = video_path.split('/')[-1][:-4]
+  print(name)
+  np.save(SAVE_DIR+'/'+name + '.npy', flow)
   return flow
 
 def main():
@@ -89,12 +101,12 @@ def main():
       for vid in vids:
 
           compute_TVL1(path + '/' + vid)
-  compute_TVL1(DATA_DIR+'/v_CricketShot_g04_c01.avi')
+  # compute_TVL1(DATA_DIR+'/v_CricketShot_g04_c01.avi')
   print('Compute flow in sec: ', time.time() - start_time)
-  start_time = time.time()
-  print('Extract RGB...')
-  compute_rgb(DATA_DIR+'/v_CricketShot_g04_c01.avi')
-  print('Compute rgb in sec: ', time.time() - start_time)
+  # start_time = time.time()
+  # print('Extract RGB...')
+  # compute_rgb(DATA_DIR+'/v_CricketShot_g04_c01.avi')
+  # print('Compute rgb in sec: ', time.time() - start_time)
   
 if __name__ == '__main__':
   print(cv2.__version__)
