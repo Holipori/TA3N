@@ -31,9 +31,9 @@ from dataset_extr_feat import VideoDataset
 from torch.utils.data import DataLoader
 matplotlib.use('Agg')
 
-np.random.seed(1)
-torch.manual_seed(1)
-torch.cuda.manual_seed_all(1)
+np.random.seed(2)
+torch.manual_seed(2)
+torch.cuda.manual_seed_all(2)
 
 init(autoreset=True)
 

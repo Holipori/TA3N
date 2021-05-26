@@ -68,8 +68,8 @@ parser.add_argument('--add_fc', default=1, type=int, metavar='M',
 
 parser.add_argument('--arch', type=str, default="resnet101")
 parser.add_argument('--pretrained', type=str, default="none")
-parser.add_argument('--num_segments', type=int, default=15)
-parser.add_argument('--val_segments', type=int, default=15)
+parser.add_argument('--num_segments', type=int, default=20)
+parser.add_argument('--val_segments', type=int, default=20)
 parser.add_argument('--fc_dim', type=int, default=512, help='dimension of added fc')
 parser.add_argument('--baseline_type', type=str, default='frame',
                     choices=['frame', 'video', 'tsn'])

@@ -33,15 +33,15 @@ sets = os.listdir(dir)
 print(len(sets))
 
 # for raw video num
-# total = '/home/xinyue/dataset/ucf101/RGB'
-# dirs = os.listdir(total)
-# num = 0
-# for dir in dirs:
-#     path = total + '/' + dir
-#     # print(path)
-#     sets = os.listdir(path)
-#     num += len(sets)
-#     print(num)
+total = '/home/xinyue/dataset/hmdb51/RGB'
+dirs = os.listdir(total)
+num = 0
+for dir in dirs:
+    path = total + '/' + dir
+    # print(path)
+    sets = os.listdir(path)
+    num += len(sets)
+    print(num)
 
 # for TA3N original parition
 # file = '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt'

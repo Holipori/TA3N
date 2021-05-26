@@ -99,7 +99,6 @@ def main():
       path = os.path.join(DATA_DIR, dir)
       vids = os.listdir(path)
       for vid in vids:
-
           compute_TVL1(path + '/' + vid)
   # compute_TVL1(DATA_DIR+'/v_CricketShot_g04_c01.avi')
   print('Compute flow in sec: ', time.time() - start_time)
