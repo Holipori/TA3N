@@ -16,7 +16,8 @@ def argument(parser, source, target, full, use_i3d):
     parser.add_argument('--source', type=str, default=source)
     parser.add_argument('--target', type=str, default=target)
     parser.add_argument('--use_i3d', type = str, default= use_i3d)
-    if source == 'ucf101':
+    parser.add_argument('--full', type= bool, default= full)
+    if source == 'ucf101' and target == 'hmdb51':
         if full:
             if use_i3d:
                 parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt", type=str)
@@ -35,6 +36,43 @@ def argument(parser, source, target, full, use_i3d):
                 parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
                 parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
                 parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
+    elif source == 'hmdb51' and target == 'ucf101':
+        if full:
+            if use_i3d:
+                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt", type=str)
+                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt", type=str)
+                parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-i3d.txt', type=str)
+            else:
+                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
+                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
+                parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
+        else:
+            if use_i3d:
+                parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt", type=str)
+                parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt" ,type=str)
+                parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-i3d.txt', type=str)
+            else:
+                parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt", type=str)
+                parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt" ,type=str)
+                parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature.txt', type=str)
+    elif source == 'ucf101' and target =='olympic':
+        if use_i3d:
+            parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
+            parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
+            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_olympic_val_ucf_olympic-feature-i3d.txt', type=str)
+        else:
+            parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_olympic_val_ucf_olympic-feature.txt', type=str)
+    elif source == 'olympic' and target =='ucf101':
+        if use_i3d:
+            parser.add_argument('--train_source_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
+            parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
+            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-i3d.txt', type=str)
+        else:
+            parser.add_argument('--train_source_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature.txt', type=str)
     return parser
 
 parser = argparse.ArgumentParser(description="PyTorch implementation of Temporal Segment Networks")
@@ -44,8 +82,8 @@ parser.add_argument('--dataset', type=str, default= "hmdb_ucf", choices=["hmdb_u
 parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf.txt")
 parser.add_argument('--modality', type=str, default = 'RGB', choices=['RGB', 'Flow', 'RGBDiff', 'RGBDiff2', 'RGBDiffplus'])
 
-source = 'ucf101'
-target = 'hmdb51'
+source = 'hmdb51'
+target = 'ucf101'
 full = True
 use_i3d = True
 
@@ -60,6 +98,7 @@ parser.add_argument('--share_mapping', default=True, type = bool)
 parser.add_argument('--method', default= 'path_gen', type= str)
 parser.add_argument('--use_cdan', default= True, type = bool)
 parser.add_argument('--use_temporal_attention', default= False, type = bool)
+parser.add_argument('--use_dropout', default= False, type = bool)
 # ========================= Model Configs ==========================
 # parser.add_argument('--add_fc', default=0, type=int, metavar='M',
 #                     help='number of additional fc layers (excluding the last fc layer) (e.g. 0, 1, 2, ...)')

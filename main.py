@@ -31,9 +31,10 @@ from dataset_extr_feat import VideoDataset
 from torch.utils.data import DataLoader
 matplotlib.use('Agg')
 
-np.random.seed(2)
-torch.manual_seed(2)
-torch.cuda.manual_seed_all(2)
+seednum = 1
+np.random.seed(seednum)
+torch.manual_seed(seednum)
+torch.cuda.manual_seed_all(seednum)
 
 init(autoreset=True)
 
@@ -78,23 +79,12 @@ def main():
 	global args, best_prec1, writer
 	args = parser.parse_args()
 
-	print(Fore.GREEN + 'Baseline:', args.baseline_type)
-	print(Fore.GREEN + 'Frame aggregation method:', args.frame_aggregation)
-
-	print(Fore.GREEN + 'target data usage:', args.use_target)
-	if args.use_target == 'none':
-		print(Fore.GREEN + 'no Domain Adaptation')
-	else:
-		if args.dis_DA != 'none':
-			print(Fore.GREEN + 'Apply the discrepancy-based Domain Adaptation approach:', args.dis_DA)
-			if len(args.place_dis) != args.add_fc + 2:
-				raise ValueError(Back.RED + 'len(place_dis) should be equal to add_fc + 2')
-
-		if args.adv_DA != 'none':
-			print(Fore.GREEN + 'Apply the adversarial-based Domain Adaptation approach:', args.adv_DA)
-
-		if args.use_bn != 'none':
-			print(Fore.GREEN + 'Apply the adaptive normalization approach:', args.use_bn)
+	print(Fore.GREEN + 'Source:', args.source)
+	print(Fore.GREEN + 'Target:', args.target)
+	print(Fore.GREEN + 'full:', args.full)
+	print(Fore.GREEN + 'use_cdan:', args.use_cdan)
+	print(Fore.GREEN + 'num segments:', args.num_segments)
+	print(Fore.GREEN + 'seed number:', seednum)
 
 	# determine the categories
 	class_names = [line.strip().split(' ', 1)[1] for line in open(args.class_file)]
@@ -177,6 +167,12 @@ def main():
 		test_short_file = open(path_exp + 'test_short.log', 'w')
 		test_file = open(path_exp + 'test.log', 'w')
 
+	train_file.write('Source:'+ args.source +'\n')
+	train_file.write('Target:' + args.target +'\n')
+	train_file.write('full:'+ str(args.full) +'\n')
+	train_file.write('use_cdan:'+ str(args.use_cdan) +'\n')
+	train_file.write('num segments:'+ str(args.num_segments) +'\n')
+	train_file.write('seed number:'+ str(seednum) +'\n')
 	#=== Data loading ===#
 	print(Fore.CYAN + 'loading data......')
 

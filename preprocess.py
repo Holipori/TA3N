@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 import time
 
-DATA_DIR = '/home/xinyue/dataset/hmdb51/RGB'
-SAVE_DIR = '/home/xinyue/dataset/hmdb51/flow'
+DATA_DIR = '/home/xinyue/dataset/ucf101/RGB'
+SAVE_DIR = '/home/xinyue/dataset/ucf101/flow'
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
@@ -99,6 +99,10 @@ def main():
       path = os.path.join(DATA_DIR, dir)
       vids = os.listdir(path)
       for vid in vids:
+          newname = vid[:-4] + '.npy'
+          newpath = os.path.join(SAVE_DIR, newname)
+          if os.path.exists(newpath):
+              continue
           compute_TVL1(path + '/' + vid)
   # compute_TVL1(DATA_DIR+'/v_CricketShot_g04_c01.avi')
   print('Compute flow in sec: ', time.time() - start_time)

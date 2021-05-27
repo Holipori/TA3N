@@ -130,9 +130,14 @@ class TSNDataSet(data.Dataset):
         #     id_expand = np.ones(self.num_segments-num_select,dtype=int)*id_select[id_select[0]-1]
         #     offsets = np.append(id_select, id_expand)
 
-        # # first n frames
+
         if record.num_frames >= num_min:
+            # # # # # first n frames
             offsets = np.array(list(range(self.num_segments)))
+            # # # # # original
+            # tick = float(num_select) / float(self.num_segments)
+            # offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)])
+            # # # # # interval
         else:
             id_select = np.array([x for x in range(num_select)])
             # expand to the length of self.num_segments with the last element

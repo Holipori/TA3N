@@ -16,6 +16,12 @@ class Path(object):
             output_dir = '/home/xinyue/dataset/hmdb51/out'
 
             return root_dir, output_dir
+        elif database == 'olympic':
+            root_dir = '/home/xinyue/dataset/olympic/RGB'
+
+            output_dir = '/home/xinyue/dataset/olympic/RGB'
+
+            return root_dir, output_dir
         else:
             print('Database {} not available.'.format(database))
             raise NotImplementedError

@@ -1088,6 +1088,12 @@ class VideoModel(nn.Module):
 		feat_fc_source = self.fc_feature_shared_source(feat_base_source)
 		feat_fc_target = self.fc_feature_shared_target(feat_base_target) if args.share_mapping == False else self.fc_feature_shared_source(feat_base_target)
 
+
+		if args.use_dropout:
+			feat_fc_source = self.relu(feat_fc_source)
+			feat_fc_target = self.relu(feat_fc_target)
+			feat_fc_source = self.dropout_i(feat_fc_source)
+			feat_fc_target = self.dropout_i(feat_fc_target)
 		# adaptive BN
 
 		##== rmdn correction ===##
@@ -1154,6 +1160,10 @@ class VideoModel(nn.Module):
 		# norm_loss += torch.linalg.norm(Q_t)
 		# u, s_t, v = torch.svd(Q_t)
 		# norm_loss += torch.sum(s_t)
+
+		if args.use_dropout:
+			feat_fc_source = self.dropout_v(feat_fc_source)
+			feat_fc_target = self.dropout_v(feat_fc_target)
 
 		# temporal attention
 		if args.use_temporal_attention:
