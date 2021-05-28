@@ -84,6 +84,10 @@ class VideoDataset(Dataset):
                 for line in f.readlines():
                     temp = line.split()
                     self.label2index[temp[1]] = int(temp[0])
+            # with open('/home/xinyue/TA3N/data/ucf101_splits/class_list_ucf_olympic.txt', 'r') as f:
+            #     for line in f.readlines():
+            #         temp = line.split()
+            #         self.label2index[temp[1]] = int(temp[0])
 
             self.label_array = np.array([self.label2index[label] for label in labels], dtype=int)
 
@@ -303,7 +307,7 @@ if __name__ == "__main__":
     # train_data = VideoDataset(dataset='hmdb51', split='test', clip_len=8, preprocess=False)
     # train_data = VideoDataset(dataset='ucf101', split='val', clip_len=8, preprocess=True)
 
-    train_data = VideoDataset(dataset='olympic')
+    train_data = VideoDataset(dataset='ucf101', preprocess= False)
     train_loader = DataLoader(train_data, batch_size=1, shuffle=False, num_workers=4)
 
     for i, sample in enumerate(train_loader):

@@ -59,11 +59,11 @@ def argument(parser, source, target, full, use_i3d):
         if use_i3d:
             parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
             parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
-            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_olympic_val_ucf_olympic-feature-i3d.txt', type=str)
+            parser.add_argument('--val_list', default='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-i3d.txt', type=str)
         else:
             parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
             parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
-            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_olympic_val_ucf_olympic-feature.txt', type=str)
+            parser.add_argument('--val_list', default='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature.txt', type=str)
     elif source == 'olympic' and target =='ucf101':
         if use_i3d:
             parser.add_argument('--train_source_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
@@ -82,21 +82,23 @@ parser.add_argument('--dataset', type=str, default= "hmdb_ucf", choices=["hmdb_u
 parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf.txt")
 parser.add_argument('--modality', type=str, default = 'RGB', choices=['RGB', 'Flow', 'RGBDiff', 'RGBDiff2', 'RGBDiffplus'])
 
-source = 'hmdb51'
-target = 'ucf101'
+source = 'ucf101'
+target = 'hmdb51'
+# source = 'hmdb51'
+# target = 'ucf101'
 full = True
 use_i3d = True
 
 parser = argument(parser, source, target, full, use_i3d)
+parser.add_argument('--use_attention', default= True, type= bool)
+# parser.add_argument('--method', default= 'no', type= str)
+parser.add_argument('--method', default= 'path_gen', type= str)
+parser.add_argument('--use_cdan', default= False, type = bool)
 
 parser.add_argument('--if_trm', default= True, type = bool, help= 'if replace temporal relation module with fc layer')
 parser.add_argument('--trm_bottleneck', default= 256, type = int, help=' original 256')
 parser.add_argument('--use_mydata', default= False, type= bool)
-
-parser.add_argument('--use_attention', default= True, type= bool)
 parser.add_argument('--share_mapping', default=True, type = bool)
-parser.add_argument('--method', default= 'path_gen', type= str)
-parser.add_argument('--use_cdan', default= True, type = bool)
 parser.add_argument('--use_temporal_attention', default= False, type = bool)
 parser.add_argument('--use_dropout', default= False, type = bool)
 # ========================= Model Configs ==========================
@@ -168,7 +170,7 @@ parser.add_argument('--place_adv', default=['N', 'Y', 'Y'], type=str, nargs="+",
 parser.add_argument('--pretrain_source', default=False, action="store_true", help='perform source-only training before DA')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
-parser.add_argument('-b', '--batch_size', default=[16,16,16], type=int, nargs="+", # 128 74 128 #64,74,128
+parser.add_argument('-b', '--batch_size', default=[6,6,6], type=int, nargs="+", # 128 74 128 #64,74,128
                     metavar='N', help='mini-batch size ([source, target, testing])')
 parser.add_argument('--lr', '--learning_rate', default=0.01, type=float, # 3e-2
                     metavar='LR', help='initial learning rate')
@@ -200,9 +202,9 @@ parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-# parser.add_argument('--resume', default='exp-tempRGB/80.83/checkpoint.pth.tar', type=str, metavar='PATH',
+# parser.add_argument('--resume', default='exp-tempRGB/u-h_no_attention_cdan/checkpoint.pth.tar', type=str, metavar='PATH',
 #                     help='path to latest checkpoint (default: none)')
-# parser.add_argument('--resume', default='exp-tempRGB/temp/2021-05-21 16:29:49/checkpoint.pth.tar', type=str, metavar='PATH',
+# parser.add_argument('--resume', default='exp-tempRGB/temp/2021-05-28 01:59:23/checkpoint.pth.tar', type=str, metavar='PATH',
 #                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--resume_hp', default=False, action="store_true",
                     help='whether to use the saved hyper-parameters')

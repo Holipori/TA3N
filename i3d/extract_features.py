@@ -107,7 +107,7 @@ def run(dataset_name = args.source, split = 'train', mode='rgb', root='/ssd2/cha
 
         b,c,t,h,w = inputs.shape
         feature_dir = save_dir + dataset_name + '/RGB-feature-i3d/'
-        if t > 1600:
+        if t > 1600: # PASS
             features = []
             for start in range(1, t-56, 1600):
                 end = min(t-1, start+1600+56)
@@ -119,15 +119,19 @@ def run(dataset_name = args.source, split = 'train', mode='rgb', root='/ssd2/cha
             # wrap them in Variable
             with torch.no_grad():
                 inputs = inputs.to(device)
+                out_dir = feature_dir + name[0]
+                print(out_dir)
+                # if os.path.exists(out_dir):
+                #     continue
                 try:
                     features = i3d.extract_features(inputs)[0]
                 except:
                     print(inputs.shape)
-                out_dir = feature_dir + name[0]
-                print(out_dir)
+
                 if not os.path.exists(out_dir):
                     os.makedirs(out_dir)
                 features = features.squeeze(0).permute(1,0,2,3).data.detach().cpu()
+                print(features.shape)
                 for i in range(features.shape[0]):
                     id_frame = i + 1
                     id_frame_name = str(id_frame).zfill(5)

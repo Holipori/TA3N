@@ -31,7 +31,7 @@ from dataset_extr_feat import VideoDataset
 from torch.utils.data import DataLoader
 matplotlib.use('Agg')
 
-seednum = 1
+seednum = 2
 np.random.seed(seednum)
 torch.manual_seed(seednum)
 torch.cuda.manual_seed_all(seednum)
@@ -41,39 +41,6 @@ init(autoreset=True)
 best_prec1 = 0
 gpu_count = torch.cuda.device_count()
 
-def add_argument(args, num_class):
-	parser = argparse.ArgumentParser(description='deepspeed')
-	# parser.add_argument('--numb_class', default= num_class, type = int)
-	# parser.add_argument('--baseline_type', default= args.baseline_type, type = str)
-	# parser.add_argument('--frame_aggregation', default= args.frame_aggregation, type = str)
-	# parser.add_argument('--modality', default= args.modality, type = str)
-	# parser.add_argument('--num_segments', default= args.num_segments, type = int)
-	# parser.add_argument('--val_segments', default= args.val_segments, type = int)
-	# parser.add_argument('--base_model', default= args.arch, type = str)
-	# parser.add_argument('--path_pretrained', default= args.pretrained, type = str)
-	# parser.add_argument('--add_fc', default= args.add_fc, type = int)
-	# parser.add_argument('--fc_dim', default= args.fc_dim, type = int)
-	# parser.add_argument('--dropout_i', default= args.dropout_i, type = float)
-	# parser.add_argument('--dropout_v', default= args.dropout_v, type = float)
-	# p = not args.no_partialbn
-	# parser.add_argument('--partial_bn', default= p, action= 'store_true')
-	# parser.add_argument('--use_bn', default= 'none', type = str)
-	# parser.add_argument('--ens_DA', default= 'none', type = str)
-	# parser.add_argument('--n_rnn', default= args.n_rnn, type = int)
-	# parser.add_argument('--rnn_cell', default= args.rnn_cell, type = str)
-	# parser.add_argument('--n_directions', default= args.n_directions, type = int)
-	# parser.add_argument('--n_ts', default= args.n_ts, type = int)
-	# parser.add_argument('--use_attn', default= args.use_attn, type = str)
-	# parser.add_argument('--n_attn', default= args.n_attn, type = int)
-	# parser.add_argument('--use_attn_frame', default= args.use_attn_frame, type = str)
-	# parser.add_argument('--verbose', default= args.verbose, action= "store_true")
-	# parser.add_argument('--share_params', default= args.share_params, type = str)
-	# parser.add_argument('--if_trm', default= args.if_trm, type = bool)
-	# parser.add_argument('--trm_bottleneck', default= args.trm_bottleneck, type = int)
-	parser = deepspeed.add_config_arguments(parser)
-
-	args2 = parser.parse_args()
-	return args2
 
 def main():
 	global args, best_prec1, writer
@@ -83,6 +50,8 @@ def main():
 	print(Fore.GREEN + 'Target:', args.target)
 	print(Fore.GREEN + 'full:', args.full)
 	print(Fore.GREEN + 'use_cdan:', args.use_cdan)
+	print(Fore.GREEN + 'use_attention:', args.use_attention)
+	print(Fore.GREEN + 'method:', args.method)
 	print(Fore.GREEN + 'num segments:', args.num_segments)
 	print(Fore.GREEN + 'seed number:', seednum)
 
@@ -171,6 +140,8 @@ def main():
 	train_file.write('Target:' + args.target +'\n')
 	train_file.write('full:'+ str(args.full) +'\n')
 	train_file.write('use_cdan:'+ str(args.use_cdan) +'\n')
+	train_file.write('use_attention:'+ str(args.use_attention) +'\n')
+	train_file.write('method:'+ str(args.method) +'\n')
 	train_file.write('num segments:'+ str(args.num_segments) +'\n')
 	train_file.write('seed number:'+ str(seednum) +'\n')
 	#=== Data loading ===#
@@ -444,12 +415,12 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 			# 	source_label = torch.cat((source_label, source_label_dummy))
 
 		# add dummy tensors to make sure batch size can be divided by gpu #
-		if source_data.size(0) % gpu_count != 0:
-			source_data_dummy = torch.zeros(gpu_count - source_data.size(0) % gpu_count, source_data.size(1), source_data.size(2))
-			source_data = torch.cat((source_data, source_data_dummy))
-		if target_data.size(0) % gpu_count != 0:
-			target_data_dummy = torch.zeros(gpu_count - target_data.size(0) % gpu_count, target_data.size(1), target_data.size(2))
-			target_data = torch.cat((target_data, target_data_dummy))
+		# if source_data.size(0) % gpu_count != 0:
+		# 	source_data_dummy = torch.zeros(gpu_count - source_data.size(0) % gpu_count, source_data.size(1), source_data.size(2))
+		# 	source_data = torch.cat((source_data, source_data_dummy))
+		# if target_data.size(0) % gpu_count != 0:
+		# 	target_data_dummy = torch.zeros(gpu_count - target_data.size(0) % gpu_count, target_data.size(1), target_data.size(2))
+		# 	target_data = torch.cat((target_data, target_data_dummy))
 
 		# measure data loading time
 		data_time.update(time.time() - end)
@@ -790,9 +761,6 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 				else:
 					val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
 				val_data = torch.cat((val_data, val_data_dummy))
-			if val_label.size()[0] < args.batch_size[2]:
-				val_label_dummy = torch.ones(args.batch_size[2] - batch_val_ori).long()*12 # total class number
-				val_label = torch.cat((val_label, val_label_dummy))
 
 			# add dummy tensors to make sure batch size can be divided by gpu #
 			if val_data.size(0) % gpu_count != 0:

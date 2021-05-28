@@ -899,6 +899,7 @@ class VideoModel(nn.Module):
 		out, (h,c) = self.video_cls(feat)
 		out = out.transpose(0, 1)[:, -1, :]
 		out = self.video_cls_fc(out)
+		self.latent_features.append(out.detach())
 		out = F.relu(out)
 		# out = F.dropout(out, p= 0.5)
 		out = self.video_cls_fc2(out)
@@ -1110,7 +1111,8 @@ class VideoModel(nn.Module):
 
 		# basis = self.gen_basis(l = self.train_segments, gamma= self.gamma) # train_segments when target.
 		# print('basis:',basis.shape)
-		norm_loss = torch.zeros(1).cuda()
+		# norm_loss = torch.zeros(1).cuda()
+		self.latent_features = []
 
 		feat_fc_source = feat_fc_source.view(batch_source, self.train_segments, -1)
 
@@ -1121,7 +1123,6 @@ class VideoModel(nn.Module):
 			feat_fc_source = feat_fc_source.view(batch_source, self.train_segments, -1)
 			feat_fc_source2 = feat_fc_source.transpose(0, 1)
 			W_s, (h, c) = self.path_gen(feat_fc_source2)
-			np.save('W.npy', np.array(W_s.detach().cpu()))
 			W_s = W_s.transpose(0, 1)  # batch, original_size(source), target_size(latent)
 			feat_fc_source3 = feat_fc_source.transpose(1, 2)
 			feat_fc_source = torch.matmul(feat_fc_source3, W_s).transpose(1, 2).contiguous()
@@ -1155,7 +1156,9 @@ class VideoModel(nn.Module):
 			W_t = torch.matmul(Q_t,basis)
 			feat_fc_target3 = feat_fc_target.transpose(1, 2)
 			feat_fc_target = torch.matmul(feat_fc_target3, W_t).transpose(1, 2).contiguous()
-
+		else:
+			feat_fc_source = feat_fc_source.view(batch_source, self.train_segments, -1)
+			feat_fc_target = feat_fc_target.view(batch_target, self.val_segments, -1)
 
 		# norm_loss += torch.linalg.norm(Q_t)
 		# u, s_t, v = torch.svd(Q_t)
@@ -1179,7 +1182,7 @@ class VideoModel(nn.Module):
 		pred_fc_source = self.classifier_source(feat_fc_source_temp)
 		pred_fc_target = self.classifier_source(feat_fc_target_temp)
 
-		# class pred -lstm
+		# class pred - video
 		pred_lstm_source = self.lstm_vid_classifier(feat_fc_source.view(batch_source, self.train_segments, -1).transpose(0, 1))
 		pred_lstm_target = self.lstm_vid_classifier(feat_fc_target.view(batch_target, self.val_segments, -1).transpose(0, 1))
 
@@ -1390,4 +1393,4 @@ class VideoModel(nn.Module):
 			output_source_2 = self.final_output(pred_fc_source, pred_fc_video_source_2, num_segments, batch_source)
 			output_target_2 = self.final_output(pred_fc_target, pred_fc_video_target_2, num_segments, batch_target)
 
-		return attn_relation_source, output_source, output_source_2, pred_domain_all_source[::-1], feat_all_source[::-1], attn_relation_target, output_target, output_target_2, pred_domain_all_target[::-1], feat_all_target[::-1], feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, cdan_loss, norm_loss # lreverse the order of feature ist due to some multi-gpu issues
+		return attn_relation_source, output_source, output_source_2, pred_domain_all_source[::-1], feat_all_source[::-1], attn_relation_target, output_target, output_target_2, pred_domain_all_target[::-1], feat_all_target[::-1], feat_base_source0,feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, cdan_loss, self.latent_features # lreverse the order of feature ist due to some multi-gpu issues
