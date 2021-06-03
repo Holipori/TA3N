@@ -51,95 +51,90 @@ def modify_argument(args):
 		if full:
 			if use_i3d:
 				if mode == 'rgb':
-					args.rain_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt"
-					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt"
-					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-i3d.txt'
+					args.rain_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-i3d.txt'
 				else:
-					args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt"
-					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt"
-					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-flow.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-flow.txt'
 			else:
-				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt"
-				args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt"
-				args.val_list='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt"
+				args.val_list=os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt'
 		else:
 			if use_i3d:
 				if mode == 'rgb':
-					args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt"
-					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt"
-					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-i3d.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-i3d.txt'
 				else:
-					args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt"
-					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt"
-					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-flow.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-flow.txt'
 			else:
-				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt"
-				args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt"
-				args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt'
 	elif source == 'hmdb51' and target == 'ucf101':
 		if full:
 			if use_i3d:
 				if mode == 'rgb':
-					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt"
-					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt"
-					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-i3d.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-i3d.txt'
 				else:
-					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt"
-					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt"
-					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-flow.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-flow.txt'
 			else:
-				args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt"
-				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt"
-				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt'
 		else:
 			if use_i3d:
 				if mode == 'rgb':
-					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt"
-					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt"
-					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-i3d.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-i3d.txt'
 				else:
-					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt"
-					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt"
-					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-flow.txt'
+					args.train_source_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt"
+					args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt"
+					args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-flow.txt'
 			else:
-				args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt"
-				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt"
-				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature.txt'
 	elif source == 'ucf101' and target == 'olympic':
 		if use_i3d:
 			if mode == 'rgb':
-				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt"
-				args.train_target_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt"
-				args.val_list ='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-i3d.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/olympic/list_olympic_val_ucf_olympic-feature-i3d.txt'
 			else:
-				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt"
-				args.train_target_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt"
-				args.val_list ='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-flow.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/olympic/list_olympic_val_ucf_olympic-feature-flow.txt'
 		else:
-			args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt"
-			args.train_target_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt"
-			args.val_list ='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature.txt'
+			args.train_source_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt"
+			args.train_target_list =os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt"
+			args.val_list =os.environ['HOME'] +'/dataset/olympic/list_olympic_val_ucf_olympic-feature.txt'
 	elif source == 'olympic' and target == 'ucf101':
 		if use_i3d:
 			if mode == 'rgb':
-				args.train_source_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt"
-				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt"
-				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-i3d.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-i3d.txt'
 			else:
-				args.train_source_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt"
-				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt"
-				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-flow.txt'
+				args.train_source_list =os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt"
+				args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt"
+				args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-flow.txt'
 		else:
-			args.train_source_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt"
-			args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt"
-			args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature.txt'
+			args.train_source_list =os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt"
+			args.train_target_list =os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt"
+			args.val_list =os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_ucf_olympic-feature.txt'
 	return args
 
-def aws_argument(args):
-	args.train_source_list = args.train_source_list.replace('xinyue','ubuntu')
-	args.train_target_list = args.train_target_list.replace('xinyue','ubuntu')
-	args.val_list = args.val_list.replace('xinyue','ubuntu')
-	return args
 
 def report_status(args, num = 0, acc = 0):
 	path_name = args.source + '-' + args.target
@@ -166,10 +161,8 @@ def report_status(args, num = 0, acc = 0):
 	else:
 		path_name = path_name + '-dann'
 
-	if args.use_aws:
-		file = open('/home/ubuntu/TA3N/status.txt', 'w')
-	else:
-		file = open('/home/xinyue/TA3N/status.txt', 'w')
+
+	file = open(os.environ['HOME'] +'/TA3N/status.txt', 'w')
 	file.write(path_name)
 	file.write('\n' + str(num))
 	file.write('\n' + str(acc))
@@ -180,7 +173,6 @@ def main():
 	args = parser.parse_args()
 
 	args = modify_argument(args)
-	args = aws_argument(args)
 	report_status(args)
 
 	print(Fore.GREEN + 'Source:', args.source)

@@ -1,103 +1,104 @@
 import argparse
-# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
-# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
-# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
-# parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
-# parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
-# parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
-# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
-# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt" ,type=str)
-# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
-# # parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/list_kinetics_train_gameplay_kinetics-feature.txt", type=str)
-# # parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/list_gameplay_train_gameplay_kinetics-feature.txt" ,type=str)
-# # parser.add_argument('--val_list', default= '/home/xinyue/dataset/list_gameplay_val_gameplay_kinetics-feature.txt', type=str)
+import os
+# # parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
+# # parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
+# # parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
+# parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
+# parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt" ,type=str)
+# parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
+# # parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
+# # parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt" ,type=str)
+# # parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
+# # parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/list_kinetics_train_gameplay_kinetics-feature.txt", type=str)
+# # parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/list_gameplay_train_gameplay_kinetics-feature.txt" ,type=str)
+# # parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/list_gameplay_val_gameplay_kinetics-feature.txt', type=str)
 def argument(parser, source, target, full, use_i3d, mode = 'rgb'):
     if source == 'ucf101' and target == 'hmdb51':
         if full:
             if use_i3d:
                 if mode =='rgb':
-                    parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt", type=str)
-                    parser.add_argument('--train_target_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt", type=str)
-                    parser.add_argument('--val_list', default='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-i3d.txt', type=str)
+                    parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt", type=str)
+                    parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt", type=str)
+                    parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-i3d.txt', type=str)
                 else:
-                    parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt", type=str)
-                    parser.add_argument('--train_target_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt", type=str)
-                    parser.add_argument('--val_list', default='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-flow.txt', type=str)
+                    parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt", type=str)
+                    parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt", type=str)
+                    parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-flow.txt', type=str)
             else:
-                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
-                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
-                parser.add_argument('--val_list', default='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
+                parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
+                parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
+                parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt', type=str)
         else:
             if use_i3d:
                 if mode =='rgb':
-                    parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt", type=str)
-                    parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt" ,type=str)
-                    parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-i3d.txt', type=str)
+                    parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt", type=str)
+                    parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt" ,type=str)
+                    parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-i3d.txt', type=str)
                 else:
-                    parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt", type=str)
-                    parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt" ,type=str)
-                    parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-flow.txt', type=str)
+                    parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt", type=str)
+                    parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt" ,type=str)
+                    parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-flow.txt', type=str)
             else:
-                parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
-                parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
-                parser.add_argument('--val_list', default= '/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
+                parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt", type=str)
+                parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt" ,type=str)
+                parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt', type=str)
     elif source == 'hmdb51' and target == 'ucf101':
         if full:
             if use_i3d:
                 if mode =='rgb':
-                    parser.add_argument('--train_source_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt", type=str)
-                    parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt", type=str)
-                    parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-i3d.txt', type=str)
+                    parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt", type=str)
+                    parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt", type=str)
+                    parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-i3d.txt', type=str)
                 else:
-                    parser.add_argument('--train_source_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt", type=str)
-                    parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt", type=str)
-                    parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-flow.txt', type=str)
+                    parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt", type=str)
+                    parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt", type=str)
+                    parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-flow.txt', type=str)
             else:
-                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
-                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
-                parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
+                parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt", type=str)
+                parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt", type=str)
+                parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt', type=str)
         else:
             if use_i3d:
                 if mode =='rgb':
-                    parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt", type=str)
-                    parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt" ,type=str)
-                    parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-i3d.txt', type=str)
+                    parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt", type=str)
+                    parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt" ,type=str)
+                    parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-i3d.txt', type=str)
                 else:
-                    parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt", type=str)
-                    parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt" ,type=str)
-                    parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-flow.txt', type=str)
+                    parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt", type=str)
+                    parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt" ,type=str)
+                    parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-flow.txt', type=str)
             else:
-                parser.add_argument('--train_source_list', default= "/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt", type=str)
-                parser.add_argument('--train_target_list', default= "/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt" ,type=str)
-                parser.add_argument('--val_list', default= '/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature.txt', type=str)
+                parser.add_argument('--train_source_list', default= os.environ['HOME'] + "/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt", type=str)
+                parser.add_argument('--train_target_list', default= os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt" ,type=str)
+                parser.add_argument('--val_list', default= os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature.txt', type=str)
     elif source == 'ucf101' and target =='olympic':
         if use_i3d:
             if mode =='rgb':
-                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
-                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
-                parser.add_argument('--val_list', default='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-i3d.txt', type=str)
+                parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
+                parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
+                parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/olympic/list_olympic_val_ucf_olympic-feature-i3d.txt', type=str)
             else:
-                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt", type=str)
-                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt", type=str)
-                parser.add_argument('--val_list', default='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-flow.txt', type=str)
+                parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt", type=str)
+                parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt", type=str)
+                parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/olympic/list_olympic_val_ucf_olympic-feature-flow.txt', type=str)
         else:
-            parser.add_argument('--train_source_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
-            parser.add_argument('--train_target_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
-            parser.add_argument('--val_list', default='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature.txt', type=str)
+            parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/olympic/list_olympic_val_ucf_olympic-feature.txt', type=str)
     elif source == 'olympic' and target =='ucf101':
         if use_i3d:
             if mode =='rgb':
-                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
-                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
-                parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-i3d.txt', type=str)
+                parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt", type=str)
+                parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt", type=str)
+                parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-i3d.txt', type=str)
             else:
-                parser.add_argument('--train_source_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt", type=str)
-                parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt", type=str)
-                parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-flow.txt', type=str)
+                parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt", type=str)
+                parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt", type=str)
+                parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-flow.txt', type=str)
         else:
-            parser.add_argument('--train_source_list', default="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
-            parser.add_argument('--train_target_list', default="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
-            parser.add_argument('--val_list', default='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature.txt', type=str)
+            parser.add_argument('--train_source_list', default=os.environ['HOME'] + "/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--train_target_list', default=os.environ['HOME'] + "/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt", type=str)
+            parser.add_argument('--val_list', default=os.environ['HOME'] +'/dataset/ucf101/list_ucf101_val_ucf_olympic-feature.txt', type=str)
     return parser
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1', 'True'):
@@ -114,11 +115,11 @@ parser.add_argument('--dataset', type=str, default= "hmdb_ucf", choices=["hmdb_u
 parser.add_argument('--class_file', type=str, default="data/classInd_hmdb_ucf.txt")
 parser.add_argument('--modality', type=str, default = 'RGB', choices=['RGB', 'Flow', 'RGBDiff', 'RGBDiff2', 'RGBDiffplus'])
 
-source = 'ucf101'
-target = 'hmdb51'
-# source = 'hmdb51'
-# target = 'ucf101'
-full = False
+# source = 'ucf101'
+# target = 'hmdb51'
+source = 'hmdb51'
+target = 'ucf101'
+full = True
 use_i3d = False
 
 
@@ -127,7 +128,6 @@ parser.add_argument('--use_i3d', default= use_i3d, type= str2bool)
 parser.add_argument('--source', default= source, type= str)
 parser.add_argument('--target', default= target, type= str)
 parser.add_argument('--mode', default= 'rgb', type= str)
-parser.add_argument('--use_aws', default= True, type= bool)
 
 parser = argument(parser, source, target, full, use_i3d)
 parser.add_argument('--use_attention', default= True, type= str2bool)

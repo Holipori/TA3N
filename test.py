@@ -60,9 +60,14 @@ import matplotlib.pyplot as plt
 # print(feat.shape)
 # plt.imshow(feat)
 # plt.show()
-a = torch.randn(128,4096).cuda(0)
-net = nn.Linear(4096,4096).cuda(0)
-normal_(net.weight, 0, 1)
-constant_(net.bias, 0)
-b= net(a)
-print(b)
+
+
+# a = torch.randn(128,4096).cuda(0)
+# net = nn.Linear(4096,4096).cuda(0)
+# normal_(net.weight, 0, 1)
+# constant_(net.bias, 0)
+# b= net(a)
+# print(b)
+
+
+print(os.environ['HOME'])

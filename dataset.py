@@ -76,10 +76,7 @@ class TSNDataSet(data.Dataset):
 
     def _parse_list(self):
         #gpu cpu
-        if torch.cuda.is_available():
-            self.video_list = [VideoRecord(("/home/ubuntu/"+x).strip().split(' ')) for x in open(self.list_file)]
-        else:
-            self.video_list = [VideoRecord(("/Users/xinyuehu/" + x).strip().split(' ')) for x in open(self.list_file)]
+        self.video_list = [VideoRecord((os.environ['HOME'] + '/'+x).strip().split(' ')) for x in open(self.list_file)]
         # repeat the list if the length is less than num_dataload (especially for target data)
         n_repeat = self.num_dataload//len(self.video_list)
         n_left = self.num_dataload%len(self.video_list)
