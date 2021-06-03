@@ -22,13 +22,13 @@ init(autoreset=True)
 
 ###### Flags ######
 parser = argparse.ArgumentParser(description='Dataset Preparation')
-# parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/hmdb51/', help='source path')
-# parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/ucf101/', help='source path')
-parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/olympics/', help='source path')
+# parser.add_argument('--data_path', type=str, required=False, default='/home/ubuntu/dataset/hmdb51/', help='source path')
+parser.add_argument('--data_path', type=str, required=False, default='/home/ubuntu/dataset/ucf101/', help='source path')
+# parser.add_argument('--data_path', type=str, required=False, default='/home/xinyue/dataset/olympic/', help='source path')
 parser.add_argument('--video_in', type=str, required=False, default='RGB', help='name of input video dataset')
 parser.add_argument('--feature_in', type=str, required=False, default='RGB-feature',
                     help='name of output frame dataset')
-parser.add_argument('--input_type', type=str, default='frames', choices=['video', 'frames'],
+parser.add_argument('--input_type', type=str, default='video', choices=['video', 'frames'],
                     help='input types for videos')
 parser.add_argument('--structure', type=str, default='tsn', choices=['tsn', 'imagenet'],
                     help='data structure of output frames')
@@ -39,9 +39,9 @@ parser.add_argument('--num_thread', type=int, required=False, default=2, help='n
 parser.add_argument('--batch_size', type=int, required=False, default=128, help='batch size')
 parser.add_argument('--start_class', type=int, required=False, default=1, help='the starting class id (start from 1)')
 parser.add_argument('--end_class', type=int, required=False, default=-1, help='the end class id')
-# parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/hmdb51_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
-# parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/ucf101_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
-parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/olympic_splits/class_list_ucf_olympic.txt', help='process the classes only in the class_file')
+# parser.add_argument('--class_file', type=str, default='/home/ubuntu/TA3N/data/hmdb51_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
+parser.add_argument('--class_file', type=str, default='/home/ubuntu/TA3N/data/ucf101_splits/class_list_hmdb_ucf.txt', help='process the classes only in the class_file')
+# parser.add_argument('--class_file', type=str, default='/home/xinyue/TA3N/data/olympic_splits/class_list_ucf_olympic.txt', help='process the classes only in the class_file')
 
 args = parser.parse_args()
 
@@ -118,14 +118,14 @@ else:
 if args.class_file == 'none':
 	class_names_proc = ['unlabeled']
 else:
+	# with open(args.class_file) as f:
+	# 	print(f.readlines())
 	class_names_proc = [line.strip().split(' ', 1)[1] for line in open(args.class_file)]
 
 ################### Main Function ###################
 def im2tensor(im):
-	print(im.shape)
-	im = Image.fromarray(im) # convert numpy array to PIL image
-	print(im.size())
-	t_im = data_transform(im) # Create a PyTorch Variable with the transformed image
+	im = Image.fromarray(im)  # convert numpy array to PIL image
+	t_im = data_transform(im)  # Create a PyTorch Variable with the transformed image
 	return t_im
 
 def extract_frame_feature_batch(list_tensor):
@@ -141,6 +141,7 @@ def extract_frame_feature_batch(list_tensor):
 		else:
 			batch_tensor = Variable(batch_tensor).cuda() # Create a PyTorch Variable
 			features = extractor(batch_tensor)
+			print(features.shape)
 		features = features.view(features.size(0), -1).cpu()
 		return features
 
@@ -155,6 +156,10 @@ def convert_c3d_tensor_batch(batch_tensor): # e.g. 30x3x112x112 --> 15x3x16x112x
 	return batch_tensor_c3d
 
 def extract_features(video_file):
+	# if 'v_BoxingSpeedBag_g24_c01' in video_file:
+	# 	pass
+	# else:
+	# 	return
 	print(video_file)
 	video_name = os.path.splitext(video_file)[0]
 	if args.structure == 'tsn':  # create the video folder if the data structure is TSN
@@ -186,6 +191,7 @@ def extract_features(video_file):
 				im = imageio.imread(path_input + class_name + '/' + video_file + '/' + list_frames[t])
 				if np.sum(im.shape) != 0:
 					id_frame = t+1
+					print(im.shape)
 					frames_tensor.append(im2tensor(im))  # include data pre-processing
 		except RuntimeError:
 			print(Back.RED + 'Could not read frame', id_frame+1, 'from', video_file)
@@ -229,8 +235,8 @@ def extract_features(video_file):
 		else:
 			raise NameError(Back.RED + 'not valid data structure')
 
-		if not os.path.exists(filename):
-			torch.save(features[t].clone(), filename) # if no clone(), the size of features[t] will be the same as features
+		# if not os.path.exists(filename):
+		torch.save(features[t].clone(), filename) # if no clone(), the size of features[t] will be the same as features
 
 ################### Main Program ###################
 # parse the classes
@@ -248,7 +254,9 @@ start = time.time()
 for i in range(id_class_start, id_class_end):
 	start_class = time.time()
 	class_name = list_class[i]
+	# about corresponding olympic classes
 	if class_name in class_names_proc:
+	# if 1:
 		print(Fore.YELLOW + 'class ' + str(i+1) + ': ' + class_name)
 
 		if args.structure == 'imagenet': # create the class folder if the data structure is ImageNet

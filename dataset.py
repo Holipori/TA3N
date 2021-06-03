@@ -77,7 +77,7 @@ class TSNDataSet(data.Dataset):
     def _parse_list(self):
         #gpu cpu
         if torch.cuda.is_available():
-            self.video_list = [VideoRecord(("/home/xinyue/"+x).strip().split(' ')) for x in open(self.list_file)]
+            self.video_list = [VideoRecord(("/home/ubuntu/"+x).strip().split(' ')) for x in open(self.list_file)]
         else:
             self.video_list = [VideoRecord(("/Users/xinyuehu/" + x).strip().split(' ')) for x in open(self.list_file)]
         # repeat the list if the length is less than num_dataload (especially for target data)
@@ -120,7 +120,7 @@ class TSNDataSet(data.Dataset):
         num_min = self.num_segments + self.new_length - 1
         num_select = record.num_frames - self.new_length + 1
 
-        #original
+        #original no use
         # if record.num_frames >= num_min:
         #     tick = float(num_select) / float(self.num_segments)
         #     offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)]) # pick the central frame in each segment
@@ -137,7 +137,7 @@ class TSNDataSet(data.Dataset):
             # # # # # original
             # tick = float(num_select) / float(self.num_segments)
             # offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)])
-            # # # # # interval
+            # # # # interval
         else:
             id_select = np.array([x for x in range(num_select)])
             # expand to the length of self.num_segments with the last element

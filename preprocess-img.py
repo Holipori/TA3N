@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 import time
 
-DATA_DIR = '/home/xinyue/dataset/ucf101/RGB'
-SAVE_DIR = '/home/xinyue/dataset/ucf101/flow'
+DATA_DIR = '/home/xinyue/dataset/olympic/RGB'
+SAVE_DIR = '/home/xinyue/dataset/olympic/flow'
 if not os.path.exists(SAVE_DIR):
     os.makedirs(SAVE_DIR)
 
@@ -14,20 +14,6 @@ _IMAGE_SIZE = 224
 _CLASS_NAMES = 'data/label_map.txt'
 
 
-def get_video_length(video_path):
-  _, ext = os.path.splitext(video_path)
-  if not ext in _EXT:
-    raise ValueError('Extension "%s" not supported' % ext)
-  cap = cv2.VideoCapture(video_path)
-  if not cap.isOpened(): 
-    raise ValueError("Could not open the file.\n{}".format(video_path))
-  if cv2.__version__ >= '3.0.0':
-    CAP_PROP_FRAME_COUNT = cv2.CAP_PROP_FRAME_COUNT
-  else:
-    CAP_PROP_FRAME_COUNT = cv2.cv.CV_CAP_PROP_FRAME_COUNT
-  length = int(cap.get(CAP_PROP_FRAME_COUNT))
-  cap.release()
-  return length
 
 def compute_rgb(video_path):
     """Compute RGB"""
@@ -51,15 +37,27 @@ def compute_rgb(video_path):
 def compute_TVL1(video_path):
   """Compute the TV-L1 optical flow."""
   print(video_path)
+  imgs = os.listdir(video_path)
+  imgs.sort()
+
   flow = []
   TVL1 = cv2.DualTVL1OpticalFlow_create()
-  vidcap = cv2.VideoCapture(video_path)
-  success,frame1 = vidcap.read()
+  # vidcap = cv2.VideoCapture(video_path)
+  # success,frame1 = vidcap.read()
+
+  frame1 = cv2.imread(video_path+ '/' + imgs[0])
+  new_width = int(frame1.shape[1] / frame1.shape[0] * 224)
+  frame1 = cv2.resize(frame1, (new_width, 224))
+
   bins = np.linspace(-20, 20, num=256)
   prev = cv2.cvtColor(frame1,cv2.COLOR_RGB2GRAY)
-  vid_len = get_video_length(video_path)
-  for _ in range(0,vid_len-2):
-      success, frame2 = vidcap.read()
+  vid_len = len(imgs)
+  for i in range(1,vid_len):
+      # success, frame2 = vidcap.read()
+
+      frame2 = cv2.imread(video_path+ '/' + imgs[i])
+      new_width = int(frame2.shape[1] / frame2.shape[0] * 224)
+      frame2 = cv2.resize(frame2, (new_width, 224))
       try:
         curr = cv2.cvtColor(frame2, cv2.COLOR_RGB2GRAY)
       except:
@@ -76,14 +74,14 @@ def compute_TVL1(video_path):
       curr_flow = np.digitize(curr_flow, bins)
       curr_flow = (curr_flow/255.)*2 - 1
 
-      new_width = int(curr_flow.shape[1]/curr_flow.shape[0] * 224)
-      curr_flow = cv2.resize(curr_flow, (new_width, 224))
+      # new_width = int(curr_flow.shape[1]/curr_flow.shape[0] * 224)
+      # curr_flow = cv2.resize(curr_flow, (new_width, 224))
       #cropping the center
       # curr_flow = curr_flow[8:232, 48:272]
       curr_flow = curr_flow[:, 37:261]
       flow.append(curr_flow)
       prev = curr
-  vidcap.release()
+  # vidcap.release()
   flow = np.asarray([np.array(flow)])
   print('Save flow with shape ', flow.shape)
   name = video_path.split('/')[-1][:-4]
@@ -99,7 +97,8 @@ def main():
       path = os.path.join(DATA_DIR, dir)
       vids = os.listdir(path)
       for vid in vids:
-          newname = vid[:-4] + '.npy'
+
+          newname = vid + '.npy'
           newpath = os.path.join(SAVE_DIR, newname)
 
           # designated file control

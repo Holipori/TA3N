@@ -25,13 +25,12 @@ from tensorboardX import SummaryWriter
 import matplotlib
 import matplotlib.pyplot as plt
 import argparse
-import deepspeed
 from dataset_extr_feat import VideoDataset
 
 from torch.utils.data import DataLoader
 matplotlib.use('Agg')
 
-seednum = 2
+seednum = 1
 np.random.seed(seednum)
 torch.manual_seed(seednum)
 torch.cuda.manual_seed_all(seednum)
@@ -39,12 +38,150 @@ torch.cuda.manual_seed_all(seednum)
 init(autoreset=True)
 
 best_prec1 = 0
+
 gpu_count = torch.cuda.device_count()
 
+def modify_argument(args):
+	source = args.source
+	target = args.target
+	full = args.full
+	use_i3d = args.use_i3d
+	mode = args.mode
+	if source == 'ucf101' and target == 'hmdb51':
+		if full:
+			if use_i3d:
+				if mode == 'rgb':
+					args.rain_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt"
+					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt"
+					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-i3d.txt'
+				else:
+					args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt"
+					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt"
+					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature-flow.txt'
+			else:
+				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt"
+				args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt"
+				args.val_list='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf-feature.txt'
+		else:
+			if use_i3d:
+				if mode == 'rgb':
+					args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt"
+					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt"
+					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-i3d.txt'
+				else:
+					args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt"
+					args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt"
+					args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature-flow.txt'
+			else:
+				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt"
+				args.train_target_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt"
+				args.val_list ='/home/xinyue/dataset/hmdb51/list_hmdb51_val_hmdb_ucf_small-feature.txt'
+	elif source == 'hmdb51' and target == 'ucf101':
+		if full:
+			if use_i3d:
+				if mode == 'rgb':
+					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-i3d.txt"
+					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-i3d.txt"
+					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-i3d.txt'
+				else:
+					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature-flow.txt"
+					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature-flow.txt"
+					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature-flow.txt'
+			else:
+				args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf-feature.txt"
+				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf-feature.txt"
+				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf-feature.txt'
+		else:
+			if use_i3d:
+				if mode == 'rgb':
+					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-i3d.txt"
+					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-i3d.txt"
+					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-i3d.txt'
+				else:
+					args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature-flow.txt"
+					args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature-flow.txt"
+					args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature-flow.txt'
+			else:
+				args.train_source_list ="/home/xinyue/dataset/hmdb51/list_hmdb51_train_hmdb_ucf_small-feature.txt"
+				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_hmdb_ucf_small-feature.txt"
+				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_hmdb_ucf_small-feature.txt'
+	elif source == 'ucf101' and target == 'olympic':
+		if use_i3d:
+			if mode == 'rgb':
+				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt"
+				args.train_target_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt"
+				args.val_list ='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-i3d.txt'
+			else:
+				args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt"
+				args.train_target_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt"
+				args.val_list ='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature-flow.txt'
+		else:
+			args.train_source_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt"
+			args.train_target_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt"
+			args.val_list ='/home/xinyue/dataset/olympic/list_olympic_val_ucf_olympic-feature.txt'
+	elif source == 'olympic' and target == 'ucf101':
+		if use_i3d:
+			if mode == 'rgb':
+				args.train_source_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-i3d.txt"
+				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-i3d.txt"
+				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-i3d.txt'
+			else:
+				args.train_source_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature-flow.txt"
+				args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature-flow.txt"
+				args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature-flow.txt'
+		else:
+			args.train_source_list ="/home/xinyue/dataset/olympic/list_olympic_train_ucf_olympic-feature.txt"
+			args.train_target_list ="/home/xinyue/dataset/ucf101/list_ucf101_train_ucf_olympic-feature.txt"
+			args.val_list ='/home/xinyue/dataset/ucf101/list_ucf101_val_ucf_olympic-feature.txt'
+	return args
+
+def aws_argument(args):
+	args.train_source_list = args.train_source_list.replace('xinyue','ubuntu')
+	args.train_target_list = args.train_target_list.replace('xinyue','ubuntu')
+	args.val_list = args.val_list.replace('xinyue','ubuntu')
+	return args
+
+def report_status(args, num = 0, acc = 0):
+	path_name = args.source + '-' + args.target
+	if args.source in ['hmdb51', 'ucf101']:
+		if args.full:
+			path_name = path_name + '-full'
+		else:
+			path_name = path_name + '-small'
+	if args.use_i3d:
+		path_name = path_name + '-' + args.mode
+	else:
+		path_name = path_name + '-res'
+
+	if args.use_attention:
+		path_name = path_name + '-att'
+	else:
+		path_name = path_name + '-no'
+	if args.method == 'path_gen':
+		path_name = path_name + '-path'
+	else:
+		path_name = path_name + '-no'
+	if args.use_cdan:
+		path_name = path_name + '-cdan'
+	else:
+		path_name = path_name + '-dann'
+
+	if args.use_aws:
+		file = open('/home/ubuntu/TA3N/status.txt', 'w')
+	else:
+		file = open('/home/xinyue/TA3N/status.txt', 'w')
+	file.write(path_name)
+	file.write('\n' + str(num))
+	file.write('\n' + str(acc))
+	file.close()
 
 def main():
 	global args, best_prec1, writer
 	args = parser.parse_args()
+
+	args = modify_argument(args)
+	args = aws_argument(args)
+	report_status(args)
 
 	print(Fore.GREEN + 'Source:', args.source)
 	print(Fore.GREEN + 'Target:', args.target)
@@ -52,6 +189,8 @@ def main():
 	print(Fore.GREEN + 'use_cdan:', args.use_cdan)
 	print(Fore.GREEN + 'use_attention:', args.use_attention)
 	print(Fore.GREEN + 'method:', args.method)
+	print(Fore.GREEN + 'use_i3d:', args.use_i3d)
+	print(Fore.GREEN + 'mode:', args.mode)
 	print(Fore.GREEN + 'num segments:', args.num_segments)
 	print(Fore.GREEN + 'seed number:', seednum)
 
@@ -60,7 +199,31 @@ def main():
 	num_class = len(class_names)
 
 	#=== check the folder existence ===#
-	path_exp = args.exp_path + args.modality + '/' + 'temp/' + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) +'/'
+	path_name = args.source + '-' + args.target
+	if args.source in ['hmdb51', 'ucf101']:
+		if args.full:
+			path_name = path_name + '-full'
+		else:
+			path_name = path_name + '-small'
+	if args.use_i3d:
+		path_name = path_name + '-' + args.mode
+	else:
+		path_name = path_name + '-res'
+
+	if args.use_attention:
+		path_name = path_name + '-att'
+	else:
+		path_name = path_name + '-no'
+	if args.method == 'path_gen':
+		path_name = path_name + '-path'
+	else:
+		path_name = path_name + '-no'
+	if args.use_cdan:
+		path_name = path_name + '-cdan'
+	else:
+		path_name = path_name + '-dann'
+	path_exp = args.exp_path + args.modality + '/' + 'temp/' + path_name+'/'
+	print(path_exp)
 	if not os.path.isdir(path_exp):
 		os.makedirs(path_exp)
 
@@ -142,6 +305,8 @@ def main():
 	train_file.write('use_cdan:'+ str(args.use_cdan) +'\n')
 	train_file.write('use_attention:'+ str(args.use_attention) +'\n')
 	train_file.write('method:'+ str(args.method) +'\n')
+	train_file.write('use_i3d:'+ str(args.use_i3d) +'\n')
+	train_file.write('mode:'+ str(args.mode) +'\n')
 	train_file.write('num segments:'+ str(args.num_segments) +'\n')
 	train_file.write('seed number:'+ str(seednum) +'\n')
 	#=== Data loading ===#
@@ -302,6 +467,7 @@ def main():
 					'best_prec1': best_prec1,
 					'prec1': prec1,
 				}, is_best, path_exp)
+		report_status(args, epoch, best_prec1)
 
 	end_train = time.time()
 	print(Fore.CYAN + 'total training time:', end_train - start_train)
@@ -677,6 +843,9 @@ def train(num_class, source_loader, target_loader, model, criterion, criterion_d
 			attn_epoch_source = torch.cat((attn_epoch_source, attn_source.cpu()))
 			attn_epoch_target = torch.cat((attn_epoch_target, attn_target.cpu()))
 
+		## only once
+		# return losses_c.avg, attn_epoch_source.mean(0), attn_epoch_target.mean(0)
+
 	# update the embedding every epoch
 	if args.tensorboard:
 		n_iter_train = epoch * len(source_loader) # calculate the total iteration
@@ -757,24 +926,35 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 			if batch_val_ori < args.batch_size[2]:
 				dummy = True
 				if args.use_mydata or args.use_i3d:
-					val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2],val_size_ori[3],val_size_ori[4])
+					val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2],
+												 val_size_ori[3], val_size_ori[4])
+					val_label_dummy = torch.ones(
+						args.batch_size[2] - batch_val_ori).long() * num_class  # total class number
+					val_label = torch.cat((val_label, val_label_dummy))
 				else:
 					val_data_dummy = torch.zeros(args.batch_size[2] - batch_val_ori, val_size_ori[1], val_size_ori[2])
+					val_label_dummy = torch.ones(
+						args.batch_size[2] - batch_val_ori).long() * num_class  # total class number
+					val_label = torch.cat((val_label, val_label_dummy))
 				val_data = torch.cat((val_data, val_data_dummy))
 
 			# add dummy tensors to make sure batch size can be divided by gpu #
 			if val_data.size(0) % gpu_count != 0:
-				val_data_dummy = torch.zeros(gpu_count - val_data.size(0) % gpu_count, val_data.size(1), val_data.size(2))
+				val_data_dummy = torch.zeros(gpu_count - val_data.size(0) % gpu_count, val_data.size(1),
+											 val_data.size(2))
 				val_data = torch.cat((val_data, val_data_dummy))
 
 		val_label = val_label.cuda(non_blocking=True)
 		with torch.no_grad():
 
 			if args.baseline_type == 'frame':
-				val_label_frame = val_label.unsqueeze(1).repeat(1,args.num_segments).view(-1) # expand the size for all the frames
+				val_label_frame = val_label.unsqueeze(1).repeat(1, args.num_segments).view(
+					-1)  # expand the size for all the frames
 
 			# compute output
-			_, _, _, _, _, attn_val, out_val, out_val_2, pred_domain_val, feat_val, feat_base_source0,feat_base_target0, feat_base_source, feat_base_target,_, avg_loss, cdan_loss,loss_sdtw = model(val_data, val_label, val_data, [0]*len(args.beta), 0, is_train=False, reverse=False, batchsize = int(batch_val_ori/gpu_count), dummy = dummy)
+			_, _, _, _, _, attn_val, out_val, out_val_2, pred_domain_val, feat_val, feat_base_source0, feat_base_target0, feat_base_source, feat_base_target, _, avg_loss, cdan_loss, loss_sdtw = model(
+				val_data, val_label, val_data, [0] * len(args.beta), 0, is_train=False, reverse=False,
+				batchsize=int(batch_val_ori / gpu_count), dummy=dummy)
 
 			# ignore dummy tensors
 			attn_val, out_val, out_val_2, pred_domain_val, feat_val = removeDummy(attn_val, out_val, out_val_2, pred_domain_val, feat_val, batch_val_ori)
@@ -827,6 +1007,7 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 
 		writer.add_embedding(feat_val_display, metadata=label_val_display.data, global_step=n_iter_val, tag='validation')
 
+
 	print(('Testing Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
 		  .format(top1=top1, top5=top5, loss=losses)))
 	return top1.avg
@@ -835,10 +1016,11 @@ def validate(val_loader, model, criterion, num_class, epoch, log):
 def save_checkpoint(state, is_best, path_exp, filename='checkpoint.pth.tar'):
 
 	path_file = path_exp + filename
-	torch.save(state, path_file)
+	# torch.save(state, path_file)
 	if is_best:
 		path_best = path_exp + 'model_best.pth.tar'
-		shutil.copyfile(path_file, path_best)
+		torch.save(state, path_best)
+		# shutil.copyfile(path_file, path_best)
 
 class AverageMeter(object):
 	"""Computes and stores the average and current value"""

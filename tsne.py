@@ -30,8 +30,8 @@ model = VideoModel(num_class, args.baseline_type, args.frame_aggregation, args.m
 				verbose=args.verbose, share_params=args.share_params, if_trm = args.if_trm, trm_bottleneck=args.trm_bottleneck)
 
 model = torch.nn.DataParallel(model, args.gpus).cuda()
-# checkpoint = torch.load('exp-tempRGB/temp/2021-05-27 23:48:42/model_best.pth.tar') #
-checkpoint = torch.load('exp-tempRGB/u-h_no_path_cdan/model_best.pth.tar') #
+checkpoint = torch.load('exp-tempRGB/temp/2021-05-28 14:25:24/model_best.pth.tar') #
+# checkpoint = torch.load('exp-tempRGB/u-h_dann82.2/model_best.pth.tar') #
 model.load_state_dict(checkpoint['state_dict'])
 
 
@@ -46,7 +46,7 @@ source_set = TSNDataSet("", args.train_source_list, num_dataload=num_source, num
 									)
 
 source_sampler = torch.utils.data.sampler.RandomSampler(source_set)
-source_loader = torch.utils.data.DataLoader(source_set, batch_size=args.batch_size[0], shuffle=False, sampler=source_sampler, num_workers=args.workers, pin_memory=True)
+source_loader = torch.utils.data.DataLoader(source_set, batch_size=6, shuffle=False, sampler=source_sampler, num_workers=args.workers, pin_memory=True)
 
 target_set = TSNDataSet("", args.train_target_list, num_dataload=num_target, num_segments=args.num_segments,
                         new_length=1, modality=args.modality,
@@ -56,7 +56,7 @@ target_set = TSNDataSet("", args.train_target_list, num_dataload=num_target, num
                         )
 
 target_sampler = torch.utils.data.sampler.RandomSampler(target_set)
-target_loader = torch.utils.data.DataLoader(target_set, batch_size=args.batch_size[1], shuffle=False, sampler=target_sampler, num_workers=args.workers, pin_memory=True)
+target_loader = torch.utils.data.DataLoader(target_set, batch_size=6, shuffle=False, sampler=target_sampler, num_workers=args.workers, pin_memory=True)
 data_loader = enumerate(zip(source_loader, target_loader))
 ## val
 source = []
