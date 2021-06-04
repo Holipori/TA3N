@@ -130,10 +130,10 @@ class TSNDataSet(data.Dataset):
 
         if record.num_frames >= num_min:
             # # # # # first n frames
-            offsets = np.array(list(range(self.num_segments)))
+            # offsets = np.array(list(range(self.num_segments)))
             # # # # # original
-            # tick = float(num_select) / float(self.num_segments)
-            # offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)])
+            tick = float(num_select) / float(self.num_segments)
+            offsets = np.array([int(tick / 2.0 + tick * float(x)) for x in range(self.num_segments)])
             # # # # interval
         else:
             id_select = np.array([x for x in range(num_select)])

@@ -30,7 +30,7 @@ from dataset_extr_feat import VideoDataset
 from torch.utils.data import DataLoader
 matplotlib.use('Agg')
 
-seednum = 1
+seednum = 4
 np.random.seed(seednum)
 torch.manual_seed(seednum)
 torch.cuda.manual_seed_all(seednum)

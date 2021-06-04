@@ -15,7 +15,7 @@ from colorama import Fore, Back, Style
 from soft_dtw_cuda import SoftDTW
 
 from opts import parser
-# from myTransformer import mytrans
+from myTransformer import mytrans
 
 torch.manual_seed(1)
 torch.cuda.manual_seed_all(1)
@@ -201,7 +201,7 @@ class VideoModel(nn.Module):
         # self.fc_tr = nn.Linear(self.d_model, self.d_model).cuda()
         self.enc_pos_encoding = torch.autograd.Variable(torch.empty((49, self.d_model)).cuda().uniform_(-0.1, 0.1),
                                                         requires_grad=True)
-        self.transformer = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
+        self.transformer = mytrans(d_model=self.d_model, nhead=8, dim_feedforward=4096,
                                           num_encoder_layers=2, num_decoder_layers=0).cuda()  # [seq_len, batch, d]
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
@@ -209,7 +209,7 @@ class VideoModel(nn.Module):
         self.enc_pos_encoding2 = torch.autograd.Variable(
             torch.empty((args.num_segments, self.d_model)).cuda().uniform_(-0.1, 0.1),
             requires_grad=True)
-        self.transformer2 = nn.Transformer(d_model=self.d_model, nhead=8, dim_feedforward=4096,
+        self.transformer2 = mytrans(d_model=self.d_model, nhead=8, dim_feedforward=4096,
                                            num_encoder_layers=2, num_decoder_layers=0).cuda()
 
         # feature size
@@ -1035,7 +1035,7 @@ class VideoModel(nn.Module):
             weight).detach().item()
         return G_loss
 
-    def forward(self, input_source, source_label, input_target, beta, mu, is_train, reverse, batchsize=0, dummy=False):
+    def forward(self, input_source, source_label, input_target, beta = [0,0,0], mu = 0, is_train = True, reverse= False, batchsize=0, dummy=False):
         print('shapeori',input_source.shape)
         batch_source = input_source.size()[0]
         batch_target = input_target.size()[0]
@@ -1422,4 +1422,4 @@ class VideoModel(nn.Module):
         return attn_relation_source, output_source, output_source_2, pred_domain_all_source[::-1], feat_all_source[
                                                                                                    ::-1], attn_relation_target, output_target, output_target_2, pred_domain_all_target[
                                                                                                                                                                 ::-1], feat_all_target[
-                                                                                                                                                                       ::-1], feat_base_source0, feat_base_target0, feat_base_source, feat_base_target, source_means, avg_loss, cdan_loss, self.latent_features  # lreverse the order of feature ist due to some multi-gpu issues
+                                                                                                                                                                       ::-1], feat_base_source0, feat_base_target0, feat_base_source, feat_base_target, source_means, self.transformer.encoder.layers[0].attn[0], cdan_loss, self.latent_features  # lreverse the order of feature ist due to some multi-gpu issues

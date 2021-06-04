@@ -5,7 +5,7 @@ import torch.nn as nn
 class myEncoderlayer(nn.TransformerEncoderLayer):
     __constants__ = ['norm']
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
-        super(myEncoderlayer, self).__init__(d_model, nhead,dim_feedforward=2048, dropout=0.1, activation="relu")
+        super(myEncoderlayer, self).__init__(d_model, nhead, dim_feedforward=4096, dropout=0.1, activation="relu")
         self.attn = 'None'
 
     def __setstate__(self, state):
@@ -21,15 +21,17 @@ class myEncoderlayer(nn.TransformerEncoderLayer):
         return src
 
 class mytrans(nn.Transformer):
-    def __init__(self, d_model = 512, nhead = 8, num_encoder_layers = 6,
-                 num_decoder_layers = 6, dim_feedforward = 2048, dropout = 0.1,
+    def __init__(self, d_model = 2048, nhead = 8, num_encoder_layers = 6,
+                 num_decoder_layers = 6, dim_feedforward = 4096, dropout = 0.1,
                  activation = "relu", custom_encoder = None, custom_decoder = None):
         super(mytrans, self).__init__()
-
         encoder_layer = myEncoderlayer(d_model, nhead, dim_feedforward, dropout, activation)
         encoder_norm = LayerNorm(d_model)
         self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
 
+        decoder_layer = nn.TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout, activation)
+        decoder_norm = LayerNorm(d_model)
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
 
 
         self._reset_parameters()

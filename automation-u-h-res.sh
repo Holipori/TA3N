@@ -50,21 +50,21 @@ use_cdan=false
 #python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
 
 use_attention=true
-python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
+#python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
 
 use_attention=false
 method=path_gen
-python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
+#python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
 
 use_attention=true
 method=path_gen
-python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
+#python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
 
 #h to u cdan part
 use_cdan=true
 use_attention=false
 method=no
-python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
+#python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
 
 use_attention=true
 python main.py --source $source --target $target --full $full --use_cdan $use_cdan --use_attention $use_attention --method $method --use_i3d $use_i3d --mode $mode
